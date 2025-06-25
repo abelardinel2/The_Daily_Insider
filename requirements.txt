@@ -3,4 +3,3 @@ requests
 schedule
 beautifulsoup4
 python-dotenv
-requests
