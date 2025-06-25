@@ -43,6 +43,7 @@ def generate_summary(label=""):
         [f"• {s['ticker']} – ${s['amount']:,} ({s['insider']})" for s in sells]
     ) + "\n\n"
 
+    summary += f"🧮 Total Buys: ${total_buys:,.0f} | Total Sells: ${total_sells:,.0f}\n"
     summary += f"📈 Bias: {bias}"
     return summary
 
