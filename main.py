@@ -1,24 +1,32 @@
 import os
-import telegram
-from datetime import datetime
 from sec_edgar_downloader import Downloader
+from telegram_bot import send_telegram_message
 
 def get_summary():
-    dl = Downloader("sec_data")
-    today = datetime.today().strftime('%Y-%m-%d')
-    filings = dl.get("4", amount=10)
-    summary = f"📊 Insider Flow Summary – {today}\n\n"
-    summary += "This is a placeholder summary. Real data parsing to be implemented.\n"
+    # Initialize the SEC Downloader with your email from environment
+    email = os.getenv("SEC_EMAIL")
+    if not email:
+        raise ValueError("Missing SEC_EMAIL environment variable")
+
+    dl = Downloader("sec_data", email_address=email)
+
+    # Example: Download recent Form 4 filings for AAPL (replace with your logic)
+    dl.get("4", "AAPL", amount=5)
+
+    # Build the summary message
+    summary = (
+        f"📊 SEC Insider Summary – {os.getenv('SUMMARY_LABEL', '(Time Unknown)')}\n\n"
+        f"Downloaded latest Form 4 filings for AAPL.\n"
+        f"Data saved to: sec_data/\n"
+        f"Additional parsing & summary logic goes here..."
+    )
+
     return summary
 
-def send_to_telegram(message):
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    if not token or not chat_id:
-        raise Exception("Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID in environment.")
-    bot = telegram.Bot(token=token)
-    bot.send_message(chat_id=chat_id, text=message)
-
 if __name__ == "__main__":
-    summary = get_summary()
-    send_to_telegram(summary)
+    try:
+        summary = get_summary()
+        send_telegram_message(summary)
+    except Exception as e:
+        send_telegram_message(f"❌ Bot Error: {e}")
+        raise
