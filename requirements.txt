@@ -3,3 +3,5 @@ requests
 schedule
 beautifulsoup4
 python-dotenv
+python-telegram-bot==13.15
+requests
