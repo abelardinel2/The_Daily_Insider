@@ -2,9 +2,8 @@ name: Daily Insider Bot
 
 on:
   schedule:
-    # Runs at 8:00 AM and 5:00 PM ET → 12:00 and 21:00 UTC
-    - cron: '0 12,21 * * *'
-  workflow_dispatch:  # allows you to run it manually
+    - cron: '0 12,21 * * *'  # 8 AM and 5 PM ET (12, 21 UTC)
+  workflow_dispatch:
 
 jobs:
   run-bot:
@@ -22,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.10
+          python-version: '3.10'  # ✅ FIXED VERSION
 
       - name: Install dependencies
         run: |
