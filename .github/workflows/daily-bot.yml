@@ -9,7 +9,6 @@ on:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -24,18 +23,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Set summary label
-        id: summary
-        run: |
-          if [ "$(date -u +'%H')" = "13" ]; then
-            echo "label=(Morning)" >> $GITHUB_OUTPUT
-          else
-            echo "label=(Evening)" >> $GITHUB_OUTPUT
-          fi
-
       - name: Run bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SUMMARY_LABEL: ${{ steps.summary.outputs.label }}
         run: python main.py
