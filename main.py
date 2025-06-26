@@ -1,32 +1,48 @@
 from telegram_bot import send_telegram_message
-import datetime
-import random
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
 
 def fetch_insider_data():
-    # Simulate fresh data using time-based randomness
-    seed = int(datetime.datetime.now().strftime("%Y%m%d%H"))  # changes hourly
-    random.seed(seed)
+    url = "https://openinsider.com/latest-insider-trading"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "html.parser")
+    table = soup.find("table", {"class": "tinytable"})
 
-    top_buys = [
-        {"ticker": "SONO", "amount": int(4245197 * random.uniform(0.97, 1.03)), "insider": "Coliseum Capital"},
-        {"ticker": "AXINU", "amount": int(4000000 * random.uniform(0.97, 1.03)), "insider": "Axiom Intelligence"},
-        {"ticker": "ARNYC", "amount": int(35549 * random.uniform(0.97, 1.03)), "insider": "Nicholas Schorsch"},
-    ]
+    rows = table.find_all("tr")[1:]  # skip header
+    trades = []
+    for row in rows:
+        cols = row.find_all("td")
+        if len(cols) < 10:
+            continue
 
-    top_sells = [
-        {"ticker": "ORCL", "amount": int(764007886 * random.uniform(0.97, 1.03)), "insider": "CEO Safra Catz"},
-        {"ticker": "SLDE", "amount": int(5667205 * random.uniform(0.97, 1.03)), "insider": "Dir. Gries"},
-        {"ticker": "SOFI", "amount": int(1039471 * random.uniform(0.97, 1.03)), "insider": "CTO Jeremy Rishel"},
-    ]
+        ticker = cols[1].text.strip()
+        insider = cols[5].text.strip()
+        action = cols[6].text.strip()
+        amount_str = cols[9].text.strip().replace("$", "").replace(",", "")
+        try:
+            amount = int(float(amount_str))
+        except:
+            continue
 
-    total_buys = sum([b["amount"] for b in top_buys])
-    total_sells = sum([s["amount"] for s in top_sells])
+        trades.append({
+            "ticker": ticker,
+            "insider": insider,
+            "action": action,
+            "amount": amount
+        })
+
+    buys = sorted([t for t in trades if "Buy" in t["action"]], key=lambda x: -x["amount"])[:3]
+    sells = sorted([t for t in trades if "Sale" in t["action"]], key=lambda x: -x["amount"])[:3]
 
     return {
-        "top_buys": top_buys,
-        "top_sells": top_sells,
-        "total_buys": total_buys,
-        "total_sells": total_sells,
+        "top_buys": buys,
+        "top_sells": sells,
+        "total_buys": sum(t["amount"] for t in buys),
+        "total_sells": sum(t["amount"] for t in sells)
     }
 
 def generate_summary(label=""):
@@ -43,7 +59,7 @@ def generate_summary(label=""):
     else:
         bias = "Mild Sell–Side Bias 👀"
 
-    today = datetime.date.today().strftime('%B %d, %Y')
+    today = datetime.now().strftime('%B %d, %Y')
     summary = f"📊 Insider Flow Summary – {today} {label}\n\n"
 
     summary += "💰 Top Buys\n" + "\n".join(
