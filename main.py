@@ -1,77 +1,43 @@
-import os
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 import requests
 from bs4 import BeautifulSoup
-from telegram import Bot
 from datetime import datetime
 
-def fetch_openinsider_data(limit=10):
-    url = "http://openinsider.com/latest-insider-trading"
+app = FastAPI()
+
+# Hardcoded API key
+VALID_API_KEY = "k6DliYeidMR64Lix5q32uZEtKVsT671B"
+
+@app.get("/api/v3/insider-trading")
+async def insider_trading(apikey: str = "", limit: int = 10):
+    if apikey != VALID_API_KEY:
+        return JSONResponse(status_code=403, content={"error": "Invalid API key"})
+
+    url = "http://openinsider.com/screener?s=&o=&pl=&ph=&ll=&lh=&fd=-1&td=0&xp=1&sortcol=0&cnt=100"
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    
-    table = soup.find('table', class_='tinytable')
-    rows = table.find_all('tr')[1:]
+    table = soup.find("table", {"class": "tinytable"})
+    rows = table.find_all("tr")[1:]  # Skip header row
 
-    results = []
+    data = []
     for row in rows[:limit]:
-        cols = row.find_all('td')
-        if len(cols) > 7:
-            data = {
-                'ticker': cols[0].text.strip(),
-                'owner': cols[1].text.strip(),
-                'relationship': cols[2].text.strip(),
-                'date': cols[3].text.strip(),
-                'transaction': cols[5].text.strip(),
-                'shares': cols[6].text.strip(),
-                'price': cols[7].text.strip()
-            }
-            results.append(data)
-    return results
+        cols = row.find_all("td")
+        if len(cols) < 11:
+            continue
+        data.append({
+            "ticker": cols[3].text.strip(),
+            "owner": cols[5].text.strip(),
+            "relationship": cols[6].text.strip(),
+            "transaction_date": cols[1].text.strip(),
+            "transaction_type": cols[7].text.strip(),
+            "cost": cols[8].text.strip(),
+            "shares": cols[9].text.strip(),
+            "value": cols[10].text.strip(),
+        })
 
-def summarize_trades(data):
-    buys, sells = [], []
-    for trade in data:
-        if 'buy' in trade['transaction'].lower():
-            buys.append(trade)
-        elif 'sell' in trade['transaction'].lower():
-            sells.append(trade)
-    return buys, sells
-
-def format_message(buys, sells, label):
-    msg = f"📊 Insider Flow Summary – {datetime.now().strftime('%B %d, %Y')} ({label})\n\n"
-    msg += "💰 Top Buys\n"
-    if buys:
-        for b in buys:
-            msg += f"- {b['ticker']}: {b['shares']} @ ${b['price']} by {b['owner']}\n"
-    else:
-        msg += "None\n\n"
-
-    msg += "💥 Top Sells\n"
-    if sells:
-        for s in sells:
-            msg += f"- {s['ticker']}: {s['shares']} @ ${s['price']} by {s['owner']}\n"
-    else:
-        msg += "None\n\n"
-
-    msg += f"🧮 Total Buys: {len(buys)} | Total Sells: {len(sells)}\n"
-    if len(buys) > len(sells):
-        msg += "📈 Bias: Accumulation 💚"
-    elif len(sells) > len(buys):
-        msg += "📉 Bias: Distribution 💔"
-    else:
-        msg += "⚖️ Bias: Neutral ⚖️"
-    return msg
-
-def main():
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    label = os.getenv("SUMMARY_LABEL", "Morning")
-
-    bot = Bot(token=bot_token)
-    data = fetch_openinsider_data()
-    buys, sells = summarize_trades(data)
-    message = format_message(buys, sells, label)
-    bot.send_message(chat_id=chat_id, text=message)
-
-if __name__ == "__main__":
-    main()
+    return {
+        "data": data,
+        "source": "OpenInsider",
+        "fetched_at": datetime.utcnow().isoformat()
+    }
