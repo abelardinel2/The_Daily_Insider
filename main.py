@@ -1,91 +1,77 @@
 import os
 import requests
-from datetime import datetime
-from dotenv import load_dotenv
+from bs4 import BeautifulSoup
 from telegram import Bot
+from datetime import datetime
 
-# Load environment variables
-load_dotenv()
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-FMP_API_KEY = os.getenv("FMP_API_KEY")
-SUMMARY_LABEL = os.getenv("SUMMARY_LABEL", "Daily")
+def fetch_openinsider_data(limit=10):
+    url = "http://openinsider.com/latest-insider-trading"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    table = soup.find('table', class_='tinytable')
+    rows = table.find_all('tr')[1:]
 
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+    results = []
+    for row in rows[:limit]:
+        cols = row.find_all('td')
+        if len(cols) > 7:
+            data = {
+                'ticker': cols[0].text.strip(),
+                'owner': cols[1].text.strip(),
+                'relationship': cols[2].text.strip(),
+                'date': cols[3].text.strip(),
+                'transaction': cols[5].text.strip(),
+                'shares': cols[6].text.strip(),
+                'price': cols[7].text.strip()
+            }
+            results.append(data)
+    return results
 
-def fetch_insider_data():
-    url = f"https://financialmodelingprep.com/api/v4/insider-trading?apikey={FMP_API_KEY}"
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"❌ Error fetching insider data: {e}")
-        return []
-
-def generate_summary(label):
-    data = fetch_insider_data()
-
-    buys = {}
-    sells = {}
-    total_buys = 0
-    total_sells = 0
-
+def summarize_trades(data):
+    buys, sells = [], []
     for trade in data:
-        symbol = trade.get("symbol")
-        transaction_type = trade.get("transactionType")
-        cost = float(trade.get("cost", 0.0))
-        insider = trade.get("insiderName", "Unknown")
+        if 'buy' in trade['transaction'].lower():
+            buys.append(trade)
+        elif 'sell' in trade['transaction'].lower():
+            sells.append(trade)
+    return buys, sells
 
-        if transaction_type == "Buy":
-            buys.setdefault(symbol, []).append((cost, insider))
-            total_buys += cost
-        elif transaction_type == "Sell":
-            sells.setdefault(symbol, []).append((cost, insider))
-            total_sells += cost
+def format_message(buys, sells, label):
+    msg = f"📊 Insider Flow Summary – {datetime.now().strftime('%B %d, %Y')} ({label})\n\n"
+    msg += "💰 Top Buys\n"
+    if buys:
+        for b in buys:
+            msg += f"- {b['ticker']}: {b['shares']} @ ${b['price']} by {b['owner']}\n"
+    else:
+        msg += "None\n\n"
 
-    def summarize(trades):
-        sorted_trades = sorted(
-            ((symbol, sum(c for c, _ in txns), txns[0][1]) for symbol, txns in trades.items()),
-            key=lambda x: x[1], reverse=True
-        )
-        top3 = sorted_trades[:3]
-        return [f"• {s} – ${v:,.0f} ({n})" for s, v, n in top3] if top3 else []
+    msg += "💥 Top Sells\n"
+    if sells:
+        for s in sells:
+            msg += f"- {s['ticker']}: {s['shares']} @ ${s['price']} by {s['owner']}\n"
+    else:
+        msg += "None\n\n"
 
-    buy_lines = summarize(buys)
-    sell_lines = summarize(sells)
-
-    bias = "NEUTRAL ⚖️"
-    if total_buys > total_sells * 1.5:
-        bias = "STRONG BUY-SIDE SUPPORT 🚀"
-    elif total_sells > total_buys * 1.5:
-        bias = "HEAVY SELL-SIDE PRESSURE 💣"
-    elif total_sells > total_buys:
-        bias = "Mild Sell–Side Bias 👀"
-    elif total_buys > total_sells:
-        bias = "Mild Buy–Side Bias 📈"
-
-    message = f"""📊 Insider Flow Summary – {datetime.now():%B %d, %Y} ({label})
-
-💰 Top Buys
-{chr(10).join(buy_lines) if buy_lines else "None"}
-
-💥 Top Sells
-{chr(10).join(sell_lines) if sell_lines else "None"}
-
-🧮 Total Buys: ${total_buys:,.0f} | Total Sells: ${total_sells:,.0f}
-📉 Bias: {bias}"""
-
-    return message
+    msg += f"🧮 Total Buys: {len(buys)} | Total Sells: {len(sells)}\n"
+    if len(buys) > len(sells):
+        msg += "📈 Bias: Accumulation 💚"
+    elif len(sells) > len(buys):
+        msg += "📉 Bias: Distribution 💔"
+    else:
+        msg += "⚖️ Bias: Neutral ⚖️"
+    return msg
 
 def main():
-    label = SUMMARY_LABEL
-    message = generate_summary(label)
-    try:
-        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-        print("✅ Message sent.")
-    except Exception as e:
-        print(f"❌ Error sending Telegram message: {e}")
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    label = os.getenv("SUMMARY_LABEL", "Morning")
+
+    bot = Bot(token=bot_token)
+    data = fetch_openinsider_data()
+    buys, sells = summarize_trades(data)
+    message = format_message(buys, sells, label)
+    bot.send_message(chat_id=chat_id, text=message)
 
 if __name__ == "__main__":
     main()
