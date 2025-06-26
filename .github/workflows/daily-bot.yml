@@ -1,31 +1,30 @@
-name: Daily Insider Bot
+name: Daily Summary Bot
 
 on:
   schedule:
-    - cron: '0 12,21 * * *'  # 8 AM and 5 PM ET (12, 21 UTC)
+    - cron: "0 13 * * *"  # 9:00 AM ET
+    - cron: "0 21 * * *"  # 5:00 PM ET
   workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-
-    env:
-      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      SUMMARY_LABEL: ${{ github.event_name == 'schedule' && (github.event.schedule == '0 12 * * *' && '(Morning)' || '(Evening)') || '(Manual)' }}
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'  # ✅ FIXED VERSION
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run insider flow bot
+      - name: Run bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python main.py
