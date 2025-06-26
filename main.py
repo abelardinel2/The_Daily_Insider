@@ -1,42 +1,30 @@
 from telegram_bot import send_telegram_message
 import requests
-from bs4 import BeautifulSoup
 from datetime import datetime
 
 def fetch_insider_data():
-    url = "https://openinsider.com/latest-insider-trading"
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
-    table = soup.find("table", {"class": "tinytable"})
+    # ✅ Replace with your actual API key if not using .env
+    api_key = "k6DliYeidMR64Lix5q32uZEtKVsT671B"
+    url = f"https://financialmodelingprep.com/api/v4/insider-trading?apikey={api_key}"
+    
+    response = requests.get(url)
+    data = response.json()
 
-    rows = table.find_all("tr")[1:]  # skip header
     trades = []
-    for row in rows:
-        cols = row.find_all("td")
-        if len(cols) < 10:
-            continue
-
-        ticker = cols[1].text.strip()
-        insider = cols[5].text.strip()
-        action = cols[6].text.strip()
-        amount_str = cols[9].text.strip().replace("$", "").replace(",", "")
+    for entry in data:
         try:
-            amount = int(float(amount_str))
+            trades.append({
+                "ticker": entry.get("ticker"),
+                "insider": entry.get("insiderName", "Unknown"),
+                "action": entry.get("transactionType", "Unknown"),
+                "amount": int(float(entry.get("price", 0)) * float(entry.get("securitiesTransacted", 0)))
+            })
         except:
             continue
 
-        trades.append({
-            "ticker": ticker,
-            "insider": insider,
-            "action": action,
-            "amount": amount
-        })
-
-    buys = sorted([t for t in trades if "Buy" in t["action"]], key=lambda x: -x["amount"])[:3]
-    sells = sorted([t for t in trades if "Sale" in t["action"]], key=lambda x: -x["amount"])[:3]
+    # Get top 3 largest buys and sells
+    buys = sorted([t for t in trades if t["action"] == "Buy"], key=lambda x: -x["amount"])[:3]
+    sells = sorted([t for t in trades if t["action"] == "Sale"], key=lambda x: -x["amount"])[:3]
 
     return {
         "top_buys": buys,
@@ -52,6 +40,7 @@ def generate_summary(label=""):
     total_buys = data["total_buys"]
     total_sells = data["total_sells"]
 
+    # Bias logic
     if total_buys > total_sells:
         bias = "BUY-SIDE BIAS 📈"
     elif total_sells > total_buys * 5:
