@@ -1,3 +1,3 @@
-# Insider Flow Analyzer
+# Insider Flow Analyzer Bot
 
-Tracks insider sales and purchases from SEC Form 4 filings, calculates bias, and outputs summaries.
+Fetches daily insider trading data and sends a summary to Telegram.

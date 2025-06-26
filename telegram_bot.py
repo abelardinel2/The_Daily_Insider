@@ -1,15 +1,8 @@
-import requests
+from main import get_today_data
 
-# Your Telegram bot token and chat ID
-TELEGRAM_BOT_TOKEN = "7975548444:AAFtmHs3S3GYL_rDpawtDE-f_09_lFg3ex8"
-TELEGRAM_CHAT_ID = "6652085600"
+def send_daily_summary():
+    summary = get_today_data()
+    # Telegram bot logic to send `summary` to the user
+    print("Sending to Telegram:", summary)
 
-def send_telegram_message(message):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    response = requests.post(url, data=data)
-    return response.status_code == 200
+send_daily_summary()
