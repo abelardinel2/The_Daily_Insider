@@ -23,8 +23,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Test network connectivity
+        run: |
+          echo "Testing connectivity to www.openinsider.com"
+          ping -c 4 www.openinsider.com || echo "Ping failed"
+          curl -I https://www.openinsider.com || echo "Curl failed"
+          nslookup www.openinsider.com || echo "DNS resolution failed"
+
       - name: Run bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUMMARY_LABEL: ${{ github.event.schedule == '0 13 * * *' && '(Morning)' || '(Evening)' }}
         run: python main.py
