@@ -1,4 +1,5 @@
-fastapi
-uvicorn
 requests
+python-telegram-bot
 beautifulsoup4
+pandas
+sec-edgar-downloader
