@@ -7,14 +7,14 @@ def get_summary():
     if not sec_email:
         raise ValueError("Missing SEC_EMAIL environment variable")
 
-    # Initialize downloader with email and output directory
+    # Initialize downloader
     dl = Downloader("sec_data", sec_email)
 
-    # Download the 5 latest Form 4 filings for AAPL
-    dl.get("4", "AAPL", 5)
+    # Download latest Form 4 filings for AAPL
+    dl.get("4", "AAPL")
 
-    # For now, just send a placeholder message
-    summary = "✅ Successfully downloaded latest AAPL Form 4 filings from SEC EDGAR"
+    # Placeholder summary message
+    summary = "✅ Downloaded latest AAPL Form 4 filings from SEC EDGAR."
     return summary
 
 if __name__ == "__main__":
@@ -22,4 +22,4 @@ if __name__ == "__main__":
         summary = get_summary()
         send_telegram_message(summary)
     except Exception as e:
-        send_telegram_message(f"❌ Bot Error: {e}")
+        send_telegram_message(f"❌ Bot Error: {str(e)}")
