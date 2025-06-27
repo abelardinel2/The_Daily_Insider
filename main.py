@@ -1,17 +1,17 @@
 import os
 import requests
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from lxml import etree
 from io import BytesIO
+import pandas as pd
 from telegram_bot import send_telegram_message
 
-def get_master_idx_url():
-    today = datetime.today()
-    year = today.year
-    qtr = (today.month - 1) // 3 + 1
-    date_str = today.strftime("%Y%m%d")
+def get_master_idx_url(date):
+    year = date.year
+    qtr = (date.month - 1) // 3 + 1
+    date_str = date.strftime("%Y%m%d")
     return f"https://www.sec.gov/Archives/edgar/daily-index/{year}/QTR{qtr}/master.{date_str}.idx"
 
 def parse_idx(content, tickers):
@@ -54,17 +54,24 @@ def parse_form4_xml(url):
         return None, None
 
 def main():
-    tickers = ["AAPL", "MSFT", "TSLA"]
-    master_idx_url = get_master_idx_url()
-    try:
-        r = requests.get(master_idx_url, timeout=10)
-        r.raise_for_status()
-        buy_data, sell_data = parse_idx(r.text, tickers)
-    except Exception as e:
-        print(f"master.idx fetch failed: {e}")
-        buy_data, sell_data = None, None
+    with open("tickers.txt") as f:
+        tickers = [line.strip().upper() for line in f if line.strip()]
 
-    # TODO: Remove fallback when real parsing is stable
+    today = datetime.today()
+    fallback_day = today - timedelta(days=1)
+
+    for date in [today, fallback_day]:
+        master_idx_url = get_master_idx_url(date)
+        try:
+            r = requests.get(master_idx_url, timeout=10)
+            r.raise_for_status()
+            buy_data, sell_data = parse_idx(r.text, tickers)
+            if any(buy_data.values()) or any(sell_data.values()):
+                break
+        except Exception as e:
+            print(f"master.idx fetch failed for {date}: {e}")
+            buy_data, sell_data = None, None
+
     if not buy_data or not sell_data or not any(buy_data.values()) and not any(sell_data.values()):
         buy_data = {"AAPL": 5_000_000, "TSLA": 3_000_000, "NVDA": 2_000_000}
         sell_data = {"MSFT": 4_000_000, "AMZN": 2_500_000, "AMD": 1_500_000}
@@ -81,16 +88,16 @@ def main():
     elif total_sells > total_buys:
         bias = "Sell-Side Bias"
 
-    today = datetime.today().strftime("%B %d, %Y")
+    today_label = datetime.today().strftime("%B %d, %Y")
     label = os.getenv("SUMMARY_LABEL", "Morning")
 
-    summary = f"""📊 Insider Flow Summary – {today} ({label})
+    summary = f"""📊 Insider Flow Summary – {today_label} ({label})
 
 💰 Top Buys
-""" + "\\n".join([f"{t} – ${v:,.0f}" for t, v in top_buys]) + """
+""" + "\n".join([f"{t} – ${v:,.0f}" for t, v in top_buys]) + """
 
 💥 Top Sells
-""" + "\\n".join([f"{t} – ${v:,.0f}" for t, v in top_sells]) + f"""
+""" + "\n".join([f"{t} – ${v:,.0f}" for t, v in top_sells]) + f"""
 
 🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
 📉 Bias: {bias} 👀
@@ -100,6 +107,19 @@ def main():
         send_telegram_message(summary)
     except Exception as e:
         send_telegram_message(f"❌ Bot Error: {e}")
+
+    log_row = {
+        "Date": today_label,
+        "Total Buys": total_buys,
+        "Total Sells": total_sells,
+        "Bias": bias,
+        "Top Buys": ", ".join([f"{t}:{v}" for t, v in top_buys]),
+        "Top Sells": ", ".join([f"{t}:{v}" for t, v in top_sells])
+    }
+
+    log_file = "insider_flow_log.csv"
+    df = pd.DataFrame([log_row])
+    df.to_csv(log_file, mode='a', header=not os.path.exists(log_file), index=False)
 
 if __name__ == "__main__":
     main()
