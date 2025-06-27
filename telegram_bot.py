@@ -6,7 +6,7 @@ def send_telegram_message(message):
     TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        raise ValueError("Missing Telegram credentials in environment variables")
+        raise ValueError("Missing Telegram credentials")
 
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
@@ -17,4 +17,4 @@ def send_telegram_message(message):
 
     response = requests.post(url, data=payload)
     if response.status_code != 200:
-        raise Exception(f"Failed to send message: {response.text}")
+        raise Exception(f"Failed to send: {response.text}")
