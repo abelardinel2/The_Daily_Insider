@@ -1,17 +1,16 @@
-name: Daily Summary Bot
+name: Daily Insider Summary
 
 on:
-  schedule:
-    - cron: "0 13 * * *"  # 9:00 AM ET
-    - cron: "0 21 * * *"  # 5:00 PM ET
   workflow_dispatch:
+  schedule:
+    - cron: '30 12 * * *'  # Runs every day at 12:30 UTC (~8:30 AM ET)
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -28,6 +27,6 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SUMMARY_LABEL: ${{ github.event.schedule == '0 13 * * *' && 'Morning' || 'Evening' }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
           SEC_EMAIL: ${{ secrets.SEC_EMAIL }}
         run: python main.py
