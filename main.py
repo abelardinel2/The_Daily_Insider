@@ -1,26 +1,20 @@
 import os
-from sec_edgar_downloader import Downloader
 from telegram_bot import send_telegram_message
+from sec_edgar_downloader import Downloader
 
 def get_summary():
-    # Initialize the SEC Downloader with your email from environment
-    email = os.getenv("SEC_EMAIL")
-    if not email:
+    sec_email = os.getenv("SEC_EMAIL")
+    if not sec_email:
         raise ValueError("Missing SEC_EMAIL environment variable")
 
-    dl = Downloader("sec_data", email_address=email)
+    # Initialize downloader with email and output directory
+    dl = Downloader("sec_data", sec_email)
 
-    # Example: Download recent Form 4 filings for AAPL (replace with your logic)
-    dl.get("4", "AAPL", amount=5)
+    # Download the 5 latest Form 4 filings for AAPL
+    dl.get("4", "AAPL", 5)
 
-    # Build the summary message
-    summary = (
-        f"📊 SEC Insider Summary – {os.getenv('SUMMARY_LABEL', '(Time Unknown)')}\n\n"
-        f"Downloaded latest Form 4 filings for AAPL.\n"
-        f"Data saved to: sec_data/\n"
-        f"Additional parsing & summary logic goes here..."
-    )
-
+    # For now, just send a placeholder message
+    summary = "✅ Successfully downloaded latest AAPL Form 4 filings from SEC EDGAR"
     return summary
 
 if __name__ == "__main__":
@@ -29,4 +23,3 @@ if __name__ == "__main__":
         send_telegram_message(summary)
     except Exception as e:
         send_telegram_message(f"❌ Bot Error: {e}")
-        raise
