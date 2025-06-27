@@ -19,7 +19,7 @@ def get_summary():
         raise ValueError("Missing SEC_EMAIL environment variable")
 
     label = os.getenv("SUMMARY_LABEL", "Morning")
-    today = datetime.today().strftime("%Y-%m-%d")
+    today = "2025-06-26"
     date_label = datetime.today().strftime("%B %d, %Y")
 
     dl = Downloader("sec_data", email)
