@@ -1,9 +1,9 @@
 name: Daily Insider Summary
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}  # Enable manual run
   schedule:
-    - cron: '30 12 * * *'  # Runs every day at 12:30 UTC (~8:30 AM ET)
+    - cron: '30 12 * * *'  # Runs every day at 12:30 UTC (8:30 AM ET)
 
 jobs:
   run-bot:
