@@ -1,69 +1,45 @@
 import os
 from sec_edgar_downloader import Downloader
 from telegram_bot import send_telegram_message
-from parse_form4 import parse_form4_xml
 from datetime import datetime
 from collections import defaultdict
 
-def get_real_summary():
-    email = os.getenv("SEC_EMAIL")
-    if not email:
-        raise ValueError("Missing SEC_EMAIL environment variable")
+# NEW: Map for tricky tickers
+ticker_map = {
+    "BRK.B": "BRK-B",
+    "BF.B": "BF-B",
+    "GOOG.L": "GOOG",
+    "RDS.A": "RDSA",
+    "SHOP.TO": "SHOP",
+    "BABA.HK": "BABA"
+}
 
-    label = os.getenv("SUMMARY_LABEL", "Morning")
-    today = datetime.today().strftime("%B %d, %Y")
+skipped = []
 
-    dl = Downloader("sec_data", email)
+# Load tickers
+with open("tickers.txt") as f:
+    tickers = [line.strip() for line in f]
 
-    buys = defaultdict(float)
-    sells = defaultdict(float)
+email = os.getenv("SEC_EMAIL")
+dl = Downloader("Your Company Name", email)
 
-    with open("tickers.txt") as f:
-        tickers = [line.strip() for line in f if line.strip()]
+buy_data = defaultdict(int)
+sell_data = defaultdict(int)
 
-    for ticker in tickers:
-        dl.get("4", ticker)
-        folder = f"sec_data/sec-edgar-filings/{ticker}/4/"
-        if not os.path.exists(folder):
-            continue
-
-        for root, _, files in os.walk(folder):
-            for file in files:
-                if file.endswith(".xml"):
-                    b, s = parse_form4_xml(os.path.join(root, file))
-                    buys[ticker] += b
-                    sells[ticker] += s
-
-    top_buys = sorted(buys.items(), key=lambda x: x[1], reverse=True)[:3]
-    top_sells = sorted(sells.items(), key=lambda x: x[1], reverse=True)[:3]
-
-    total_buys = sum(buys.values())
-    total_sells = sum(sells.values())
-
-    if total_buys > total_sells:
-        bias = "Buy-Side Bias"
-    elif total_sells > total_buys:
-        bias = "Sell-Side Bias"
-    else:
-        bias = "Neutral Bias"
-
-    summary = f"""📊 Insider Flow Summary – {today} ({label})
-
-💰 Top Buys
-""" + "\n".join([f"{t} – ${v:,.0f}" for t, v in top_buys]) + """
-
-💥 Top Sells
-""" + "\n".join([f"{t} – ${v:,.0f}" for t, v in top_sells]) + f"""
-
-🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
-📉 Bias: {bias} 👀
-"""
-
-    return summary
-
-if __name__ == "__main__":
+for ticker in tickers:
+    mapped = ticker_map.get(ticker, ticker)
     try:
-        result = get_real_summary()
-        send_telegram_message(result)
+        dl.get("4", mapped)
+        # Your parse logic here...
     except Exception as e:
-        send_telegram_message(f"❌ Bot Error: {e}")
+        skipped.append(mapped)
+        continue
+
+# Create your summary as usual...
+summary = "📊 Insider Flow Summary – " + datetime.today().strftime("%B %d, %Y")
+
+# Add skipped tickers to the end
+if skipped:
+    summary += f"\n⚠️ Skipped tickers: {', '.join(skipped)}"
+
+send_telegram_message(summary)
