@@ -8,7 +8,7 @@ from collections import defaultdict
 def get_real_summary():
     email = os.getenv("SEC_EMAIL")
     if not email:
-        raise ValueError("Missing SEC_EMAIL env")
+        raise ValueError("Missing SEC_EMAIL environment variable")
 
     label = os.getenv("SUMMARY_LABEL", "Morning")
     today = datetime.today().strftime("%B %d, %Y")
@@ -24,6 +24,8 @@ def get_real_summary():
     for ticker in tickers:
         dl.get("4", ticker)
         folder = f"sec_data/sec-edgar-filings/{ticker}/4/"
+        if not os.path.exists(folder):
+            continue
 
         for root, _, files in os.walk(folder):
             for file in files:
@@ -43,15 +45,15 @@ def get_real_summary():
     elif total_sells > total_buys:
         bias = "Sell-Side Bias"
     else:
-        bias = "Neutral"
+        bias = "Neutral Bias"
 
     summary = f"""📊 Insider Flow Summary – {today} ({label})
 
 💰 Top Buys
-""" + "\n".join([f"{t} – ${v:,.0f}" for t,v in top_buys]) + """
+""" + "\n".join([f"{t} – ${v:,.0f}" for t, v in top_buys]) + """
 
 💥 Top Sells
-""" + "\n".join([f"{t} – ${v:,.0f}" for t,v in top_sells]) + f"""
+""" + "\n".join([f"{t} – ${v:,.0f}" for t, v in top_sells]) + f"""
 
 🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
 📉 Bias: {bias} 👀
@@ -61,7 +63,7 @@ def get_real_summary():
 
 if __name__ == "__main__":
     try:
-        msg = get_real_summary()
-        send_telegram_message(msg)
+        result = get_real_summary()
+        send_telegram_message(result)
     except Exception as e:
         send_telegram_message(f"❌ Bot Error: {e}")
