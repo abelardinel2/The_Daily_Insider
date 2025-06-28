@@ -1,36 +1,56 @@
 import requests
 import os
-import json
 from datetime import datetime, timedelta
 from parse_form4 import parse_form4_xml
+import json
 
-SEC_DAILY_INDEX = "https://www.sec.gov/Archives/edgar/daily-index"
+SEC_BASE = "https://data.sec.gov"
+headers = {"User-Agent": f"{os.getenv('SEC_EMAIL')} (Insider Flow Analyzer)"}
 
-def fetch_full_daily():
-    days = 1  # Adjust range if you want multiple days
-    end = datetime.today()
-    start = end - timedelta(days=days)
+def fetch_all_form4s(days=1):
+    end_date = datetime.today()
+    start_date = end_date - timedelta(days=days)
+
     total_buys = 0
     total_sells = 0
 
-    for i in range(days):
-        day = (end - timedelta(days=i)).strftime("%Y%m%d")
-        # Example daily master index (adjust as needed)
-        index_url = f"{SEC_DAILY_INDEX}/2025/QTR2/master.{day}.idx"
-        resp = requests.get(index_url, headers={"User-Agent": f"{os.getenv('SEC_EMAIL')} (OriaDawnBot)"})
+    # Get ALL company tickers and CIKs
+    tickers_url = f"{SEC_BASE}/files/company_tickers.json"
+    company_index = requests.get(tickers_url, headers=headers).json()
+
+    for entry in company_index.values():
+        cik = str(entry['cik_str']).zfill(10)
+        sub_url = f"{SEC_BASE}/submissions/CIK{cik}.json"
+        resp = requests.get(sub_url, headers=headers)
         if resp.status_code != 200:
             continue
-        for line in resp.text.splitlines():
-            if "|4|" in line:
-                parts = line.split("|")
-                if len(parts) >= 5:
-                    path = parts[-1].strip()
-                    xml_url = f"https://www.sec.gov/Archives/{path.replace('.txt', '.xml')}"
-                    result = parse_form4_xml(xml_url)
-                    total_buys += result["buys"]
-                    total_sells += result["sells"]
 
-    snapshot = {
+        recent = resp.json().get("filings", {}).get("recent", {})
+        accession_numbers = recent.get("accessionNumber", [])
+        filing_dates = recent.get("filingDate", [])
+        form_types = recent.get("form", [])
+
+        for idx, form in enumerate(form_types):
+            if form != "4":
+                continue
+
+            filing_date = filing_dates[idx]
+            filed_dt = datetime.strptime(filing_date, "%Y-%m-%d")
+            if not (start_date <= filed_dt <= end_date):
+                continue
+
+            acc_num = accession_numbers[idx].replace("-", "")
+            xml_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{acc_num}.xml"
+
+            try:
+                result = parse_form4_xml(xml_url)
+                total_buys += result["buys"]
+                total_sells += result["sells"]
+            except Exception as e:
+                print(f"Failed parsing {xml_url}: {e}")
+                continue
+
+    data = {
         "top_buys": total_buys,
         "top_sells": total_sells,
         "total_buys": total_buys,
@@ -38,9 +58,10 @@ def fetch_full_daily():
     }
 
     with open("insider_flow.json", "w") as f:
-        json.dump(snapshot, f, indent=2)
+        json.dump(data, f, indent=2)
 
-    print("✅ Daily index fetch done!")
+    print("✅ insider_flow.json updated!")
+    print(json.dumps(data, indent=2))
 
 if __name__ == "__main__":
-    fetch_full_daily()
+    fetch_all_form4s()
