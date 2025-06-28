@@ -1,48 +1,38 @@
 import os
-from datetime import datetime, timedelta
-from parse_form4 import get_recent_form4_amounts
+from parse_form4 import parse_form4_amount
 from telegram_bot import send_telegram_message
 
 def main():
-    company = os.getenv("COMPANY_NAME")
-    sec_email = os.getenv("SEC_EMAIL")
-    if not company or not sec_email:
-        raise ValueError("COMPANY_NAME and SEC_EMAIL must be set!")
+    # ✅ Example test Form 4 URL — replace with your own or loop later
+    filing_url = "https://www.sec.gov/Archives/edgar/data/1853513/000095017025091161/xslF345X03/ownership.xml"
 
-    label = os.getenv("SUMMARY_LABEL", "Morning")
-    days_back = 5  # Rolling window
+    # Parse
+    amounts = parse_form4_amount(filing_url)
 
-    tickers = ["GETY", "HOVR", "MCW"]  # Test tickers
+    buys = amounts["buys"]
+    sells = amounts["sells"]
 
-    total_buys = 0
-    total_sells = 0
+    bias = "Neutral Bias"
+    if buys > sells:
+        bias = "Buy-Side Bias"
+    elif sells > buys:
+        bias = "Sell-Side Bias"
 
-    for ticker in tickers:
-        try:
-            print(f"Processing {ticker}...")
-            amounts = get_recent_form4_amounts(ticker, sec_email, days_back)
-            total_buys += amounts["buys"]
-            total_sells += amounts["sells"]
-        except Exception as e:
-            send_telegram_message(f"❌ Bot Error for {ticker}: {e}")
+    summary = f"""📊 Insider Flow Summary – Test
 
-    bias = "Neutral Bias 👀"
-    if total_buys > total_sells:
-        bias = "Buy-Side Bias 👀"
-    elif total_sells > total_buys:
-        bias = "Sell-Side Bias 👀"
+💰 Top Buys: ${buys:,.2f}
+💥 Top Sells: ${sells:,.2f}
 
-    date_label = (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d")
-
-    summary = f"""📊 Insider Flow Summary – {date_label} ({label})
-
-💰 Top Buys: ${total_buys:,.0f}
-💥 Top Sells: ${total_sells:,.0f}
-
-🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
-📉 Bias: {bias}
+🧮 Total Buys: ${buys/1e6:.1f}M | Total Sells: ${sells/1e6:.1f}M
+📉 Bias: {bias} 👀
 """
-    send_telegram_message(summary)
+    print(summary)
+
+    # ✅ Send to Telegram too
+    try:
+        send_telegram_message(summary)
+    except Exception as e:
+        print(f"❌ Telegram failed: {e}")
 
 if __name__ == "__main__":
     main()
