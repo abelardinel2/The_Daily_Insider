@@ -1,70 +1,25 @@
 import requests
 from bs4 import BeautifulSoup
 
-SEC_BASE_URL = "https://www.sec.gov"
+def parse_form4_amount(filing_url):
+    resp = requests.get(filing_url)
+    if resp.status_code != 200:
+        raise ValueError(f"Could not fetch XML: {resp.status_code}")
 
-def get_recent_form4_amounts(ticker: str, email: str) -> dict:
-    headers = {
-        "User-Agent": f"{email} (InsiderFlowBot)",
-        "Accept-Encoding": "gzip, deflate",
-        "Host": "www.sec.gov",
-        "Referer": "https://www.sec.gov"
-    }
+    soup = BeautifulSoup(resp.text, "xml")
+    if soup.find("html"):
+        raise ValueError("Expected XML but got HTML instead.")
 
-    # 1️⃣ Get CIK
-    cik_lookup = requests.get(
-        f"https://www.sec.gov/files/company_tickers.json",
-        headers=headers
-    ).json()
+    buys = 0
+    sells = 0
 
-    cik = None
-    for k, v in cik_lookup.items():
-        if v['ticker'].upper() == ticker.upper():
-            cik = str(v['cik_str']).zfill(10)
-            break
+    for txn in soup.find_all("nonDerivativeTransaction"):
+        code = txn.transactionAcquiredDisposedCode.value.text
+        shares = txn.transactionShares.value.text
+        shares = float(shares)
+        if code == "A":
+            buys += shares
+        elif code == "D":
+            sells += shares
 
-    if not cik:
-        raise ValueError(f"Could not find CIK for ticker: {ticker}")
-
-    # 2️⃣ Get recent submissions
-    submissions = requests.get(
-        f"{SEC_BASE_URL}/submissions/CIK{cik}.json",
-        headers=headers
-    ).json()
-
-    accession_numbers = submissions['filings']['recent']['accessionNumber'][:5]
-
-    amounts = {"buys": 0, "sells": 0}
-
-    for acc_num in accession_numbers:
-        acc_num_clean = acc_num.replace("-", "")
-        index_url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_num_clean}/index.json"
-
-        index_resp = requests.get(index_url, headers=headers)
-        if index_resp.status_code != 200:
-            continue
-
-        index_json = index_resp.json()
-        doc_name = None
-
-        for f in index_json['directory']['item']:
-            if f['name'].endswith('.xml'):
-                doc_name = f['name']
-                break
-
-        if not doc_name:
-            continue
-
-        xml_url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_num_clean}/{doc_name}"
-        resp = requests.get(xml_url, headers=headers)
-        if resp.status_code != 200:
-            continue
-
-        xml = resp.text
-
-        if "<transactionAcquiredDisposedCode>A</transactionAcquiredDisposedCode>" in xml:
-            amounts["buys"] += 1
-        if "<transactionAcquiredDisposedCode>D</transactionAcquiredDisposedCode>" in xml:
-            amounts["sells"] += 1
-
-    return amounts
+    return {"buys": buys, "sells": sells}
