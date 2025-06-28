@@ -28,20 +28,25 @@ def get_recent_form4_amounts(ticker: str, email: str) -> dict:
         headers=headers
     ).json()
 
-    form4s = [
-        f for f in submissions['filings']['recent']['form']
-        if f == '4'
-    ]
+    recent_forms = submissions['filings']['recent']
+    forms = recent_forms['form']
+    accession_numbers = recent_forms['accessionNumber']
+
+    print(f"🔍 {ticker} has {len(forms)} filings. Forms found: {set(forms)}")
 
     amounts = {"buys": 0, "sells": 0}
 
-    accession_numbers = submissions['filings']['recent']['accessionNumber'][:10]
-    for acc_num in accession_numbers:
+    count = 0
+    for form, acc_num in zip(forms, accession_numbers):
+        if form != '4':
+            continue
+
         acc_clean = acc_num.replace("-", "")
         doc_url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_clean}/xslF345X03/{acc_num}.xml"
 
         resp = requests.get(doc_url, headers=headers)
         if resp.status_code != 200:
+            print(f"❌ Failed to fetch XML for {ticker} acc {acc_num}")
             continue
 
         xml = resp.text
@@ -50,4 +55,9 @@ def get_recent_form4_amounts(ticker: str, email: str) -> dict:
         if "<transactionAcquiredDisposedCode>D</transactionAcquiredDisposedCode>" in xml:
             amounts["sells"] += 1
 
+        count += 1
+        if count >= 10:
+            break
+
+    print(f"✅ {ticker}: Buys={amounts['buys']} Sells={amounts['sells']}")
     return amounts
