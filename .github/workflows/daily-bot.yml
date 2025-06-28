@@ -1,16 +1,16 @@
 name: Daily Insider Summary
 
 on:
-  workflow_dispatch: {}  # Manual trigger for testing
+  workflow_dispatch: {}
   schedule:
-    - cron: '30 12 * * *'  # Runs every day at 12:30 UTC (8:30 AM ET)
+    - cron: '30 12 * * *'
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -29,5 +29,4 @@ jobs:
           SEC_EMAIL: ${{ secrets.SEC_EMAIL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SUMMARY_LABEL: "Morning"
         run: python main.py
