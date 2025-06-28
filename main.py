@@ -1,10 +1,11 @@
 import json
-import send_telegram  # ✅ FIXED!
+import notifier  # Make sure you `import send_telegram as notifier`
 
 def main():
     with open("insider_flow.json") as f:
         data = json.load(f)
-    send_telegram.send_summary(data)  # ✅ FIXED!
+
+    notifier.send_summary(data)
 
 if __name__ == "__main__":
     main()
