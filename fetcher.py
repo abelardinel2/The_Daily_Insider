@@ -1,12 +1,11 @@
 import json
 
 def main():
-    # Fake data for test snapshot
     data = {
-        "top_buys": 5000000,
-        "top_sells": 1000000,
-        "total_buys": 5000000,
-        "total_sells": 1000000
+        "top_buys": 999999,
+        "top_sells": 555555,
+        "total_buys": 999999,
+        "total_sells": 555555
     }
 
     with open("insider_flow.json", "w") as f:
