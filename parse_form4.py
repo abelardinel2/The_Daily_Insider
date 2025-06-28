@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta   # ← ADD THIS!
 
 SEC_BASE_URL = "https://data.sec.gov"
 
@@ -29,7 +29,7 @@ def get_recent_form4_amounts(ticker: str, email: str, days_back: int) -> dict:
 
     accession_numbers = submissions['filings']['recent']['accessionNumber'][:10]
 
-    cutoff = datetime.today() - timedelta(days=days_back)
+    cutoff = datetime.today() - timedelta(days=days_back)   # ← FIXED
 
     amounts = {"buys": 0, "sells": 0}
 
