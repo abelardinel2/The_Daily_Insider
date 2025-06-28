@@ -1,32 +1,47 @@
-from bs4 import BeautifulSoup
 import requests
-import os
+from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
 
-SEC_EMAIL = os.getenv("SEC_EMAIL")
-TEST_XML = "https://www.sec.gov/Archives/edgar/data/1853513/000095017025091161/xslF345X03/ownership.xml"
+SEC_BASE_URL = "https://data.sec.gov"
 
-def parse_test_xml():
-    headers = {
-        "User-Agent": f"Oria Dawn Bot ({SEC_EMAIL})"
-    }
-    resp = requests.get(TEST_XML, headers=headers)
-    if resp.status_code != 200:
-        raise Exception(f"Could not fetch XML: {resp.status_code}")
+def parse_form4_amount(ticker: str, email: str) -> dict:
+    headers = {"User-Agent": f"{email} (InsiderFlowBot)"}
 
-    soup = BeautifulSoup(resp.text, "lxml-xml")
+    cik_lookup = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers).json()
+    cik = None
+    for _, v in cik_lookup.items():
+        if v['ticker'].upper() == ticker.upper():
+            cik = str(v['cik_str']).zfill(10)
+            break
+    if not cik:
+        raise ValueError(f"CIK not found for {ticker}")
 
-    # More robust: finds normal & derivative nodes
-    codes = soup.find_all(["transactionAcquiredDisposedCode", "derivativeTransactionAcquiredDisposedCode"])
+    submissions = requests.get(f"{SEC_BASE_URL}/submissions/CIK{cik}.json", headers=headers).json()
+    accessions = submissions['filings']['recent']['accessionNumber'][:5]
 
-    buys = sum(1 for c in codes if c.text.strip().upper() == "A")
-    sells = sum(1 for c in codes if c.text.strip().upper() == "D")
+    buys = 0
+    sells = 0
 
-    summary = f"""
-📊 Insider Flow Summary – Direct XML Test (Improved)
+    cutoff = datetime.now() - timedelta(days=5)
 
-💰 Buys found: {buys}
-💥 Sells found: {sells}
+    for acc in accessions:
+        acc_clean = acc.replace("-", "")
+        url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_clean}/xslF345X03/{acc}.xml"
 
-🧮 Total: Buys {buys} | Sells {sells}
-"""
-    return summary.strip()
+        r = requests.get(url, headers=headers)
+        if r.status_code != 200:
+            continue
+
+        soup = BeautifulSoup(r.text, "xml")
+        trans_dates = soup.find_all("transactionDate")
+        codes = soup.find_all("transactionAcquiredDisposedCode")
+
+        for date_tag, code_tag in zip(trans_dates, codes):
+            t_date = datetime.strptime(date_tag.text, "%Y-%m-%d")
+            if t_date >= cutoff:
+                if code_tag.text == "A":
+                    buys += 1_000_000
+                elif code_tag.text == "D":
+                    sells += 1_000_000
+
+    return {"buys": buys, "sells": sells}
