@@ -1,34 +1,25 @@
 import os
 from datetime import datetime, timedelta
-from parse_form4 import parse_form4_amount
+from parse_form4 import get_recent_form4_amounts
 from telegram_bot import send_telegram_message
 
-# Logging for debug
-import logging
-logging.basicConfig(level=logging.INFO)
-
 def main():
-    tickers = []
+    email = os.getenv("SEC_EMAIL")
+    label = "Morning"
+    today = datetime.today()
+    start_date = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+    end_date = today.strftime("%Y-%m-%d")
+
     with open("tickers.txt") as f:
         tickers = [line.strip() for line in f if line.strip()]
-
-    company_name = os.getenv("COMPANY_NAME")
-    sec_email = os.getenv("SEC_EMAIL")
 
     total_buys = 0
     total_sells = 0
 
-    # Rolling date range: last 5 days
-    today = datetime.utcnow().date()
-    five_days_ago = today - timedelta(days=5)
-
     for ticker in tickers:
-        try:
-            amounts = parse_form4_amount(ticker, sec_email, five_days_ago, today)
-            total_buys += amounts["buys"]
-            total_sells += amounts["sells"]
-        except Exception as e:
-            logging.warning(f"Issue with {ticker}: {e}")
+        amounts = get_recent_form4_amounts(ticker, email, start_date, end_date)
+        total_buys += amounts.get("buys", 0)
+        total_sells += amounts.get("sells", 0)
 
     bias = "Neutral Bias 👀"
     if total_buys > total_sells:
@@ -36,14 +27,14 @@ def main():
     elif total_sells > total_buys:
         bias = "Sell-Side Bias 👀"
 
-    summary = f"""📊 Insider Flow Summary – {today} (Morning)
+    summary = f"""📊 Insider Flow Summary – {end_date} ({label})
 
-💰 Top Buys: ${total_buys:,.0f}
-💥 Top Sells: ${total_sells:,.0f}
+💰 Top Buys: ${total_buys}
+💥 Top Sells: ${total_sells}
 
-🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
-📉 Bias: {bias}"""
-
+🧮 Total Buys: ${total_buys:.1f}M | Total Sells: ${total_sells:.1f}M
+📉 Bias: {bias}
+"""
     send_telegram_message(summary)
 
 if __name__ == "__main__":
