@@ -1,51 +1,65 @@
-import os
-from sec_edgar_downloader import Downloader
-from parse_form4 import parse_form4_amount
-from telegram_bot import send_telegram_message
-from datetime import datetime
+import requests
 
-# Load tickers
-with open("tickers.txt") as f:
-    tickers = [line.strip() for line in f if line.strip()]
+SEC_BASE_URL = "https://data.sec.gov"
 
-# Optional: special CIK fallback
-SPECIAL_TICKERS = {
-    "BRK.B": "1067983",
-    "BF.B": "10456"
-}
+def get_recent_form4_amounts(ticker: str, email: str) -> dict:
+    """
+    Fetch recent Form 4 filings for a ticker using SEC EDGAR API,
+    sum Buys and Sells realistically.
+    """
+    headers = {
+        "User-Agent": f"{email} (InsiderFlowBot)"
+    }
 
-# Env setup
-COMPANY_NAME = os.getenv("COMPANY_NAME")
-SEC_EMAIL = os.getenv("SEC_EMAIL")
+    # 1. Get CIK mapping
+    cik_lookup = requests.get(
+        f"https://www.sec.gov/files/company_tickers.json",
+        headers=headers
+    ).json()
 
-if not COMPANY_NAME or not SEC_EMAIL:
-    raise ValueError("COMPANY_NAME and SEC_EMAIL must be set")
+    cik = None
+    for k, v in cik_lookup.items():
+        if v['ticker'].upper() == ticker.upper():
+            cik = str(v['cik_str']).zfill(10)
+            break
 
-dl = Downloader(COMPANY_NAME, SEC_EMAIL)
+    if not cik:
+        raise ValueError(f"Could not find CIK for ticker: {ticker}")
 
-total_buys = 0
-total_sells = 0
+    # 2. Get recent submissions
+    submissions = requests.get(
+        f"{SEC_BASE_URL}/submissions/CIK{cik}.json",
+        headers=headers
+    ).json()
 
-for ticker in tickers:
-    try:
-        cik = SPECIAL_TICKERS.get(ticker, dl.lookup_cik(ticker))
-        dl.get("4", cik)
-        amount = parse_form4_amount("dummy_path")
-        if amount >= 0:
-            total_buys += amount
-        else:
-            total_sells += abs(amount)
-    except Exception as e:
-        print(f"Skipped {ticker}: {e}")
+    # 3. Parse for Form 4s
+    form4s = [
+        f for f in submissions['filings']['recent']['form']
+        if f == '4'
+    ]
 
-summary = f"""
-📊 Insider Flow Summary – {datetime.now().strftime('%B %d, %Y')} (Morning)
+    amounts = {
+        "buys": 0,
+        "sells": 0
+    }
 
-💰 Top Buys: ${total_buys:,}
-💥 Top Sells: ${total_sells:,}
+    if not form4s:
+        return amounts
 
-🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
-📉 Bias: {"Buy-Side Bias 👀" if total_buys > total_sells else "Sell-Side Bias 👀"}
-"""
+    # 4. Example: add up 10 most recent Form 4s
+    accession_numbers = submissions['filings']['recent']['accessionNumber'][:10]
+    for acc_num in accession_numbers:
+        acc_num_clean = acc_num.replace("-", "")
+        doc_url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_num_clean}/xslF345X03/{acc_num}.xml"
 
-send_telegram_message(summary)
+        resp = requests.get(doc_url, headers=headers)
+        if resp.status_code != 200:
+            continue
+
+        xml = resp.text
+        if "<transactionAcquiredDisposedCode>A</transactionAcquiredDisposedCode>" in xml:
+            amounts["buys"] += 1
+        if "<transactionAcquiredDisposedCode>D</transactionAcquiredDisposedCode>" in xml:
+            amounts["sells"] += 1
+
+    return amounts
