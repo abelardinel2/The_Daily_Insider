@@ -8,7 +8,6 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
 
@@ -26,12 +25,9 @@ jobs:
         run: python fetcher.py
 
       - name: Commit JSON
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git add insider_flow.json
-          git commit -m "✅ Update insider flow snapshot" || echo "Nothing to commit"
+          git commit -m "✅ Update insider flow snapshot"
           git push
