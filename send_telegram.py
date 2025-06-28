@@ -16,20 +16,18 @@ def send_summary(data):
     message = f"""
 📊 Insider Flow Summary
 
-💰 Top Buys: ${top_buys:,}
-💥 Top Sells: ${top_sells:,}
+💰 Top Buys: ${top_buys:,.0f}
+💥 Top Sells: ${top_sells:,.0f}
 
-🧮 Total Buys: ${total_buys:,} | Total Sells: ${total_sells:,}
+🧮 Total Buys: ${total_buys:,.0f} | Total Sells: ${total_sells:,.0f}
 📉 Bias: {bias}
 """
 
     BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message}
 
+    payload = {"chat_id": CHAT_ID, "text": message}
     resp = requests.post(url, json=payload)
     resp.raise_for_status()
-
     print("✅ Telegram message sent!")
