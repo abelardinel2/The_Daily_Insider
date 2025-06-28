@@ -1,18 +1,29 @@
 import json
 
+def load_tickers():
+    with open("tickers.txt") as f:
+        return [line.strip() for line in f if line.strip()]
+
 def main():
-    # 🔥 Replace this block with your real parse logic!
+    tickers = load_tickers()
+    total_buys = 0
+    total_sells = 0
+
+    for ticker in tickers:
+        total_buys += 100000  # placeholder logic
+        total_sells += 50000  # placeholder logic
+
     data = {
-        "top_buys": 5000000,
-        "top_sells": 1000000,
-        "total_buys": 5000000,
-        "total_sells": 1000000
+        "top_buys": total_buys,
+        "top_sells": total_sells,
+        "total_buys": total_buys,
+        "total_sells": total_sells
     }
 
     with open("insider_flow.json", "w") as f:
         json.dump(data, f)
 
-    print("✅ insider_flow.json created")
+    print(f"✅ insider_flow.json created for tickers: {tickers}")
 
 if __name__ == "__main__":
     main()
