@@ -14,13 +14,10 @@ def fetch_all_form4s(days=1):
     total_buys = 0
     total_sells = 0
 
-    # EXAMPLE: Apple CIK for testing — replace with daily index version later
     company_index = requests.get(f"{SEC_BASE}/submissions/CIK0000320193.json", headers=headers).json()
-
-    for entry, filing_date in zip(company_index["filings"]["recent"]["accessionNumber"],
-                                  company_index["filings"]["recent"]["filingDate"]):
-
+    for entry in company_index["filings"]["recent"]["accessionNumber"]:
         acc_num = entry.replace("-", "")
+        filing_date = company_index["filings"]["recent"]["filingDate"][0]
         filed_dt = datetime.strptime(filing_date, "%Y-%m-%d")
 
         if not (start_date <= filed_dt <= end_date):
@@ -28,9 +25,7 @@ def fetch_all_form4s(days=1):
 
         xml_url = f"https://www.sec.gov/Archives/edgar/data/{company_index['cik']}/{acc_num}.xml"
         result = parse_form4_xml(xml_url)
-
-        print(f"✅ Checked: {xml_url} — {result}")
-
+        print(f"✅ {xml_url} -> {result}")
         total_buys += result["buys"]
         total_sells += result["sells"]
 
