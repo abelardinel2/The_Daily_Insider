@@ -1,8 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
+import os
 
 def parse_form4_amount(url):
-    resp = requests.get(url)
+    email = os.getenv("SEC_EMAIL")
+    if not email:
+        raise ValueError("SEC_EMAIL not set!")
+
+    headers = {
+        "User-Agent": f"{email} (InsiderFlowBot)"
+    }
+
+    resp = requests.get(url, headers=headers)
     if resp.status_code != 200:
         raise ValueError(f"Could not fetch Form 4: {resp.status_code}")
 
