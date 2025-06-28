@@ -15,12 +15,13 @@ def main():
     elif total_sells > total_buys:
         bias = "Sell-Side Bias 👀"
 
-    print(f"""📊 Insider Flow Summary
+    print(f"""
+📊 Insider Flow Summary
 
-💰 Top Buys: ${top_buys:,}
-💥 Top Sells: ${top_sells:,}
+💰 Top Buys: ${top_buys}
+💥 Top Sells: ${top_sells}
 
-🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
+🧮 Total Buys: ${total_buys} | Total Sells: ${total_sells}
 📉 Bias: {bias}
 """)
 
