@@ -2,28 +2,40 @@ name: Fetch Insider Flow
 
 on:
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * *'  # runs daily at 2 AM UTC
   workflow_dispatch:
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
       - name: Install deps
         run: pip install requests beautifulsoup4
+
       - name: Run fetcher
         env:
           SEC_EMAIL: ${{ secrets.SEC_EMAIL }}
         run: python fetcher.py
-    - name: Commit JSON
-  run: |
-    git config --global user.name "github-actions"
-    git config --global user.email "actions@github.com"
-    git add insider_flow.json
-    git commit -m "Update insider flow snapshot"
-    git push
+
+      - name: Debug file contents
+        run: |
+          echo "📂 Listing files:"
+          ls -al
+          echo "📑 Showing insider_flow.json:"
+          cat insider_flow.json
+
+      - name: Commit JSON
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add insider_flow.json
+          git commit -m "✅ Update insider flow snapshot"
+          git push
