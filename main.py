@@ -1,14 +1,12 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from parse_form4 import get_recent_form4_amounts
 from telegram_bot import send_telegram_message
 
-# Hardcode yesterday's date for testing
 today = datetime.today()
 yesterday = (today - timedelta(days=1)).strftime("%Y-%m-%d")
 label = os.getenv("SUMMARY_LABEL", "Morning")
 
-# Tickers for this test
 tickers = ["GETY", "HOVR", "MCW"]
 
 email = os.getenv("SEC_EMAIL")
