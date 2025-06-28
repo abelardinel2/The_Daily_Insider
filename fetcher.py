@@ -1,42 +1,36 @@
 import requests
 import os
+import json
 from datetime import datetime, timedelta
 from parse_form4 import parse_form4_xml
-import json
 
-SEC_BASE = "https://data.sec.gov"
-headers = {"User-Agent": f"{os.getenv('SEC_EMAIL')} (Insider Flow Analyzer)"}
+SEC_DAILY_INDEX = "https://www.sec.gov/Archives/edgar/daily-index"
 
-def fetch_all_form4s(days=1):
-    end_date = datetime.today()
-    start_date = end_date - timedelta(days=days)
-
+def fetch_full_daily():
+    days = 1  # Adjust range if you want multiple days
+    end = datetime.today()
+    start = end - timedelta(days=days)
     total_buys = 0
     total_sells = 0
 
-    # ✅ Use multiple CIKs!
-    CIK_LIST = [
-        "0000320193",  # Apple
-        "0000789019",  # Microsoft
-        "0001652044"   # Alphabet
-    ]
+    for i in range(days):
+        day = (end - timedelta(days=i)).strftime("%Y%m%d")
+        # Example daily master index (adjust as needed)
+        index_url = f"{SEC_DAILY_INDEX}/2025/QTR2/master.{day}.idx"
+        resp = requests.get(index_url, headers={"User-Agent": f"{os.getenv('SEC_EMAIL')} (OriaDawnBot)"})
+        if resp.status_code != 200:
+            continue
+        for line in resp.text.splitlines():
+            if "|4|" in line:
+                parts = line.split("|")
+                if len(parts) >= 5:
+                    path = parts[-1].strip()
+                    xml_url = f"https://www.sec.gov/Archives/{path.replace('.txt', '.xml')}"
+                    result = parse_form4_xml(xml_url)
+                    total_buys += result["buys"]
+                    total_sells += result["sells"]
 
-    for cik in CIK_LIST:
-        company_index = requests.get(f"{SEC_BASE}/submissions/CIK{cik}.json", headers=headers).json()
-        for idx, entry in enumerate(company_index["filings"]["recent"]["accessionNumber"]):
-            acc_num = entry.replace("-", "")
-            filing_date = company_index["filings"]["recent"]["filingDate"][idx]
-            filed_dt = datetime.strptime(filing_date, "%Y-%m-%d")
-
-            if not (start_date <= filed_dt <= end_date):
-                continue
-
-            xml_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{acc_num}.xml"
-            result = parse_form4_xml(xml_url)
-            total_buys += result["buys"]
-            total_sells += result["sells"]
-
-    data = {
+    snapshot = {
         "top_buys": total_buys,
         "top_sells": total_sells,
         "total_buys": total_buys,
@@ -44,9 +38,9 @@ def fetch_all_form4s(days=1):
     }
 
     with open("insider_flow.json", "w") as f:
-        json.dump(data, f, indent=2)
+        json.dump(snapshot, f, indent=2)
 
-    print("✅ insider_flow.json updated!")
+    print("✅ Daily index fetch done!")
 
 if __name__ == "__main__":
-    fetch_all_form4s()
+    fetch_full_daily()
