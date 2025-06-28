@@ -1,19 +1,25 @@
 import json
 
-def load_tickers():
-    with open("tickers.txt") as f:
-        return [line.strip() for line in f if line.strip()]
-
 def main():
-    tickers = load_tickers()
+    # Example logic for fake data per ticker
+    tickers = []
+    with open("tickers.txt") as f:
+        tickers = [line.strip() for line in f.readlines() if line.strip()]
+
+    summary = []
     total_buys = 0
     total_sells = 0
 
     for ticker in tickers:
-        total_buys += 100000  # placeholder logic
-        total_sells += 50000  # placeholder logic
+        # Example: fake numbers — replace with real parse in future
+        buys = 1000000  # Example static placeholder
+        sells = 500000
+        total_buys += buys
+        total_sells += sells
+        summary.append({"ticker": ticker, "buys": buys, "sells": sells})
 
     data = {
+        "summary": summary,
         "top_buys": total_buys,
         "top_sells": total_sells,
         "total_buys": total_buys,
@@ -23,7 +29,7 @@ def main():
     with open("insider_flow.json", "w") as f:
         json.dump(data, f)
 
-    print(f"✅ insider_flow.json created for tickers: {tickers}")
+    print("✅ insider_flow.json written!")
 
 if __name__ == "__main__":
     main()
