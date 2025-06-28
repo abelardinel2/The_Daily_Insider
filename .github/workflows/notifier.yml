@@ -1,4 +1,4 @@
-name: Send Daily Telegram
+name: Notify Insider Flow
 
 on:
   schedule:
@@ -10,15 +10,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
       - name: Install deps
         run: pip install requests
-      - name: Send summary
+
+      - name: Send Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SUMMARY_LABEL: "Morning"
-        run: python main.py
+        run: |
+          python -c "
+import json, os, requests
+with open('insider_flow.json') as f:
+  data = json.load(f)
+bias = 'Neutral Bias 👀'
+if data['total_buys'] > data['total_sells']: bias = 'Buy-Side Bias 👀'
+elif data['total_sells'] > data['total_buys']: bias = 'Sell-Side Bias 👀'
+msg = f'''
+📊 Insider Flow Summary
+
+💰 Top Buys: ${data['total_buys']:,}
+💥 Top Sells: ${data['total_sells']:,}
+
+🧮 Total Buys: ${data['total_buys']:,} | Total Sells: ${data['total_sells']:,}
+📉 Bias: {bias}
+'''
+url = f'https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage'
+requests.post(url, json={'chat_id': os.getenv('TELEGRAM_CHAT_ID'), 'text': msg})
+print('✅ Telegram sent!')
+"
