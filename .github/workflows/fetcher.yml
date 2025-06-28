@@ -20,10 +20,10 @@ jobs:
         env:
           SEC_EMAIL: ${{ secrets.SEC_EMAIL }}
         run: python fetcher.py
-      - name: Commit JSON
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
-          git add insider_flow.json
-          git commit -m "Update insider flow snapshot"
-          git push
+    - name: Commit JSON
+  run: |
+    git config --global user.name "github-actions"
+    git config --global user.email "actions@github.com"
+    git add insider_flow.json
+    git commit -m "Update insider flow snapshot"
+    git push
