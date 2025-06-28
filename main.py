@@ -7,16 +7,15 @@ def main():
     company = os.getenv("COMPANY_NAME")
     sec_email = os.getenv("SEC_EMAIL")
     if not company or not sec_email:
-        raise ValueError("COMPANY_NAME and SEC_EMAIL are required")
+        raise ValueError("COMPANY_NAME and SEC_EMAIL must be set.")
 
     label = os.getenv("SUMMARY_LABEL", "Morning")
+
+    # ✅ TEST TICKERS ONLY
     tickers = [
-        "AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "AMD", "META", "GOOG",
-        "NFLX", "BRK.B", "JNJ", "UNH", "PG", "HD", "DIS", "MCD", "SBUX",
-        "PEP", "KO", "WMT", "CVX", "V", "MA", "PYPL", "INTC", "CSCO",
-        "ORCL", "IBM", "CRM", "ADBE", "SQ", "SHOP", "NKE", "UPS", "FDX",
-        "BA", "LMT", "CAT", "GE", "LOW", "T", "VZ", "PFE", "MRK", "ABBV",
-        "TMO", "BMY", "GILD", "VRTX", "AMGN"
+        "GETY",
+        "HOVR",
+        "MCW"
     ]
 
     total_buys = 0
@@ -35,16 +34,15 @@ def main():
         bias = "Sell-Side Bias 👀"
 
     today = datetime.today().strftime("%B %d, %Y")
+    summary = f"""📊 Insider Flow Summary – {today} ({label})
 
-    message = (
-        f"📊 Insider Flow Summary – {today} ({label})\n\n"
-        f"💰 Top Buys: ${total_buys * 1_000_000:,}\n"
-        f"💥 Top Sells: ${total_sells * 1_000_000:,}\n\n"
-        f"🧮 Total Buys: ${total_buys:.1f}M | Total Sells: ${total_sells:.1f}M\n"
-        f"📉 Bias: {bias}"
-    )
+💰 Top Buys: ${total_buys:,}
+💥 Top Sells: ${total_sells:,}
 
-    send_telegram_message(message)
+🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
+📉 Bias: {bias}"""
+
+    send_telegram_message(summary)
 
 if __name__ == "__main__":
     main()
