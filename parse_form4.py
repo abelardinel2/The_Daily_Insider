@@ -1,66 +1,43 @@
 import requests
-from datetime import datetime, timedelta
+import xml.etree.ElementTree as ET
 
-SEC_BASE_URL = "https://data.sec.gov"
+def parse_form4_amount(filing_url: str) -> dict:
+    """
+    Parse a single SEC Form 4 XML filing and return buy/sell USD totals.
+    """
+    headers = {"User-Agent": "InsiderFlowBot"}
+    resp = requests.get(filing_url, headers=headers)
+    resp.raise_for_status()
 
-def get_recent_form4_amounts(ticker: str, email: str, days_back: int) -> dict:
-    headers = {
-        "User-Agent": f"{email} (InsiderFlowBot)"
-    }
+    root = ET.fromstring(resp.text)
 
-    cik_lookup = requests.get(
-        "https://www.sec.gov/files/company_tickers.json",
-        headers=headers
-    ).json()
+    buys = 0.0
+    sells = 0.0
 
-    cik = None
-    for k, v in cik_lookup.items():
-        if v['ticker'].upper() == ticker.upper():
-            cik = str(v['cik_str']).zfill(10)
-            break
-
-    if not cik:
-        raise ValueError(f"Could not find CIK for ticker: {ticker}")
-
-    submissions = requests.get(
-        f"{SEC_BASE_URL}/submissions/CIK{cik}.json",
-        headers=headers
-    ).json()
-
-    accession_numbers = submissions['filings']['recent']['accessionNumber']
-
-    cutoff = datetime.today() - timedelta(days=days_back)
-
-    amounts = {"buys": 0, "sells": 0}
-
-    for acc_num in accession_numbers:
-        acc_clean = acc_num.replace("-", "")
-        doc_url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_clean}/xslF345X03/{acc_num}.xml"
-
-        resp = requests.get(doc_url, headers=headers)
-        if resp.status_code != 200:
-            continue
-
-        xml = resp.text
-
-        if "<transactionDate>" not in xml:
-            continue
+    for tx in root.findall(".//nonDerivativeTransaction"):
+        code = tx.findtext(".//transactionAcquiredDisposedCode/value")
+        shares = tx.findtext(".//transactionShares/value")
+        price = tx.findtext(".//transactionPricePerShare/value")
 
         try:
-            tx_date = xml.split("<transactionDate>")[1].split("</transactionDate>")[0].strip()
-            tx_date_obj = datetime.strptime(tx_date, "%Y-%m-%d")
-            if tx_date_obj < cutoff:
-                continue
-        except:
-            continue
+            shares = float(shares) if shares else 0.0
+            price = float(price) if price else 0.0
+        except ValueError:
+            shares = 0.0
+            price = 0.0
 
-        # Match 'A' or 'P' for buy, 'D' or 'S' for sell — more flexible
-        if "<transactionAcquiredDisposedCode>A</transactionAcquiredDisposedCode>" in xml \
-           or "<transactionAcquiredDisposedCode>P</transactionAcquiredDisposedCode>" in xml:
-            amounts["buys"] += 1
+        amount = shares * price
 
-        if "<transactionAcquiredDisposedCode>D</transactionAcquiredDisposedCode>" in xml \
-           or "<transactionAcquiredDisposedCode>S</transactionAcquiredDisposedCode>" in xml:
-            amounts["sells"] += 1
+        if code == "A":
+            buys += amount
+        elif code == "D":
+            sells += amount
 
-    return amounts
+    return {"buys": buys, "sells": sells}
+
+
+if __name__ == "__main__":
+    # 🔥 Test it directly:
+    test_url = "https://www.sec.gov/Archives/edgar/data/1853513/000095017025091161/xslF345X03/ownership.xml"
+    result = parse_form4_amount(test_url)
+    print(f"Buys: ${result['buys']:.2f} | Sells: ${result['sells']:.2f}")
