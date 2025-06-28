@@ -14,41 +14,25 @@ def fetch_all_form4s(days=1):
     total_buys = 0
     total_sells = 0
 
-    # Get ALL company tickers and CIKs
-    tickers_url = f"{SEC_BASE}/files/company_tickers.json"
-    company_index = requests.get(tickers_url, headers=headers).json()
+    # EXAMPLE: Apple CIK for testing — replace with daily index version later
+    company_index = requests.get(f"{SEC_BASE}/submissions/CIK0000320193.json", headers=headers).json()
 
-    for entry in company_index.values():
-        cik = str(entry['cik_str']).zfill(10)
-        sub_url = f"{SEC_BASE}/submissions/CIK{cik}.json"
-        resp = requests.get(sub_url, headers=headers)
-        if resp.status_code != 200:
+    for entry, filing_date in zip(company_index["filings"]["recent"]["accessionNumber"],
+                                  company_index["filings"]["recent"]["filingDate"]):
+
+        acc_num = entry.replace("-", "")
+        filed_dt = datetime.strptime(filing_date, "%Y-%m-%d")
+
+        if not (start_date <= filed_dt <= end_date):
             continue
 
-        recent = resp.json().get("filings", {}).get("recent", {})
-        accession_numbers = recent.get("accessionNumber", [])
-        filing_dates = recent.get("filingDate", [])
-        form_types = recent.get("form", [])
+        xml_url = f"https://www.sec.gov/Archives/edgar/data/{company_index['cik']}/{acc_num}.xml"
+        result = parse_form4_xml(xml_url)
 
-        for idx, form in enumerate(form_types):
-            if form != "4":
-                continue
+        print(f"✅ Checked: {xml_url} — {result}")
 
-            filing_date = filing_dates[idx]
-            filed_dt = datetime.strptime(filing_date, "%Y-%m-%d")
-            if not (start_date <= filed_dt <= end_date):
-                continue
-
-            acc_num = accession_numbers[idx].replace("-", "")
-            xml_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{acc_num}.xml"
-
-            try:
-                result = parse_form4_xml(xml_url)
-                total_buys += result["buys"]
-                total_sells += result["sells"]
-            except Exception as e:
-                print(f"Failed parsing {xml_url}: {e}")
-                continue
+        total_buys += result["buys"]
+        total_sells += result["sells"]
 
     data = {
         "top_buys": total_buys,
@@ -61,7 +45,6 @@ def fetch_all_form4s(days=1):
         json.dump(data, f, indent=2)
 
     print("✅ insider_flow.json updated!")
-    print(json.dumps(data, indent=2))
 
 if __name__ == "__main__":
     fetch_all_form4s()
