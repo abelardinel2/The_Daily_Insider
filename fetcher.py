@@ -1,27 +1,12 @@
 import json
 
 def main():
-    tickers = []
-    with open("tickers.txt") as f:
-        tickers = [line.strip() for line in f.readlines() if line.strip()]
-
-    summary = []
-    total_buys = 0
-    total_sells = 0
-
-    for ticker in tickers:
-        buys = 1000000  # placeholder example
-        sells = 500000
-        total_buys += buys
-        total_sells += sells
-        summary.append({"ticker": ticker, "buys": buys, "sells": sells})
-
+    # Simulate pulling fresh data — replace this with your real parsing later
     data = {
-        "summary": summary,
-        "top_buys": total_buys,
-        "top_sells": total_sells,
-        "total_buys": total_buys,
-        "total_sells": total_sells
+        "top_buys": 5000000,
+        "top_sells": 1000000,
+        "total_buys": 5000000,
+        "total_sells": 1000000
     }
 
     with open("insider_flow.json", "w") as f:
