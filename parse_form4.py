@@ -1,45 +1,47 @@
 import requests
-from bs4 import BeautifulSoup
+from datetime import datetime
 
 SEC_BASE_URL = "https://data.sec.gov"
 
-def parse_form4_amount(ticker, email, start_date, end_date):
-    headers = {"User-Agent": f"{email} OriaDawnBot"}
+def get_recent_form4_amounts(ticker: str, email: str, start_date: str, end_date: str) -> dict:
+    headers = {"User-Agent": f"{email} (InsiderFlowBot)"}
+    cik_lookup = requests.get(
+        f"https://www.sec.gov/files/company_tickers.json", headers=headers
+    ).json()
 
-    # Get CIK
-    lookup = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers).json()
     cik = None
-    for _, v in lookup.items():
+    for k, v in cik_lookup.items():
         if v['ticker'].upper() == ticker.upper():
             cik = str(v['cik_str']).zfill(10)
             break
+
     if not cik:
-        raise ValueError(f"No CIK for {ticker}")
+        return {"buys": 0, "sells": 0}
 
-    submissions = requests.get(f"{SEC_BASE_URL}/submissions/CIK{cik}.json", headers=headers).json()
-    forms = submissions['filings']['recent']
-    buys, sells = 0, 0
+    submissions = requests.get(
+        f"{SEC_BASE_URL}/submissions/CIK{cik}.json", headers=headers
+    ).json()
 
-    for i, form in enumerate(forms['form']):
-        if form != '4':
+    buys = 0
+    sells = 0
+
+    for i, form in enumerate(submissions['filings']['recent']['form']):
+        if form != "4":
             continue
 
-        filed_date = datetime.strptime(forms['filingDate'][i], "%Y-%m-%d").date()
+        filed_date = submissions['filings']['recent']['filingDate'][i]
         if not (start_date <= filed_date <= end_date):
             continue
 
-        acc = forms['accessionNumber'][i].replace("-", "")
-        url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc}/xslF345X03/{forms['accessionNumber'][i]}.xml"
-        resp = requests.get(url, headers=headers)
+        doc_url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{submissions['filings']['recent']['accessionNumber'][i].replace('-', '')}/xslF345X03/{submissions['filings']['recent']['accessionNumber'][i]}.xml"
+        resp = requests.get(doc_url, headers=headers)
         if resp.status_code != 200:
             continue
 
-        soup = BeautifulSoup(resp.text, "xml")
-        codes = soup.find_all("transactionAcquiredDisposedCode")
-        for code in codes:
-            if code.text == "A":
-                buys += 1
-            elif code.text == "D":
-                sells += 1
+        xml = resp.text
+        if "<transactionAcquiredDisposedCode>A</transactionAcquiredDisposedCode>" in xml:
+            buys += 1
+        if "<transactionAcquiredDisposedCode>D</transactionAcquiredDisposedCode>" in xml:
+            sells += 1
 
-    return {"buys": buys * 1_000_000, "sells": sells * 1_000_000}
+    return {"buys": buys, "sells": sells}
