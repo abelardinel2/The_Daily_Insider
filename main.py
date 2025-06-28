@@ -5,6 +5,13 @@ from parse_form4 import parse_form4_xml
 from datetime import datetime
 from collections import defaultdict
 
+# ✅ Add your known special tickers here
+CIK_MAP = {
+    "BRK.B": "1067983",   # Berkshire Hathaway Class B
+    "BF.B": "1334979",    # Brown-Forman Class B
+    # Add more if needed!
+}
+
 def get_real_summary():
     email = os.getenv("SEC_EMAIL")
     if not email:
@@ -18,12 +25,16 @@ def get_real_summary():
     buys = defaultdict(float)
     sells = defaultdict(float)
 
+    # ✅ Read tickers list
     with open("tickers.txt") as f:
         tickers = [line.strip() for line in f if line.strip()]
 
     for ticker in tickers:
-        dl.get("4", ticker)
-        folder = f"sec_data/sec-edgar-filings/{ticker}/4/"
+        # ✅ Use mapped CIK if available
+        cik_or_ticker = CIK_MAP.get(ticker, ticker)
+        dl.get("4", cik_or_ticker)
+        folder = f"sec_data/sec-edgar-filings/{cik_or_ticker}/4/"
+
         for root, _, files in os.walk(folder):
             for file in files:
                 if file.endswith(".xml"):
@@ -52,7 +63,7 @@ def get_real_summary():
 💥 Top Sells
 """ + "\n".join([f"{t} – ${v:,.0f}" for t, v in top_sells]) + f"""
 
-🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M  
+🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
 📉 Bias: {bias} 👀
 """
     return summary
