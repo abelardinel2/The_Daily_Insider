@@ -11,7 +11,7 @@ def send_telegram_message(message):
     payload = {
         "chat_id": chat_id,
         "text": message,
-        "parse_mode": "Markdown"  # Allows bold, italics, etc.
+        "parse_mode": "Markdown"
     }
 
     response = requests.post(url, data=payload)
