@@ -1,35 +1,51 @@
 import requests
 from bs4 import BeautifulSoup
-import os
 
-def parse_form4_amount(url):
-    email = os.getenv("SEC_EMAIL")
-    if not email:
-        raise ValueError("SEC_EMAIL not set!")
+SEC_BASE_URL = "https://data.sec.gov"
 
+def get_recent_form4_amounts(ticker: str, email: str) -> dict:
     headers = {
-        "User-Agent": f"{email} (InsiderFlowBot)"
+        "User-Agent": f"InsiderFlowBot/1.0 (https://oriadawn.xyz; {email})"
     }
 
-    resp = requests.get(url, headers=headers)
-    if resp.status_code != 200:
-        raise ValueError(f"Could not fetch Form 4: {resp.status_code}")
+    # Get CIK mapping
+    cik_lookup = requests.get(
+        f"https://www.sec.gov/files/company_tickers.json",
+        headers=headers
+    ).json()
 
-    soup = BeautifulSoup(resp.content, "xml")
-    if soup.find("html"):
-        raise ValueError("Expected XML but got HTML instead.")
+    cik = None
+    for k, v in cik_lookup.items():
+        if v['ticker'].upper() == ticker.upper():
+            cik = str(v['cik_str']).zfill(10)
+            break
 
-    buys = 0
-    sells = 0
+    if not cik:
+        raise ValueError(f"Could not find CIK for ticker: {ticker}")
 
-    for txn in soup.find_all("nonDerivativeTransaction"):
-        code = txn.find("transactionAcquiredDisposedCode").get_text(strip=True)
-        shares = txn.find("transactionShares").get_text(strip=True)
-        shares = float(shares)
+    submissions = requests.get(
+        f"{SEC_BASE_URL}/submissions/CIK{cik}.json",
+        headers=headers
+    ).json()
 
-        if code == "A":
-            buys += shares
-        elif code == "D":
-            sells += shares
+    amounts = {"buys": 0, "sells": 0}
 
-    return {"buys": buys, "sells": sells}
+    acc_nums = submissions['filings']['recent']['accessionNumber'][:5]
+    for acc_num in acc_nums:
+        acc_num_clean = acc_num.replace("-", "")
+        url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_num_clean}/xslF345X03/{acc_num}.xml"
+
+        resp = requests.get(url, headers=headers)
+        if resp.status_code != 200:
+            continue
+
+        soup = BeautifulSoup(resp.content, "xml")
+        acquired = soup.find_all("transactionAcquiredDisposedCode")
+
+        for tag in acquired:
+            if tag.text == "A":
+                amounts['buys'] += 1_000_000  # Example $1M per buy
+            elif tag.text == "D":
+                amounts['sells'] += 1_000_000  # Example $1M per sell
+
+    return amounts
