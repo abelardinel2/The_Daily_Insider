@@ -1,35 +1,49 @@
 import os
-from datetime import datetime
-from send_telegram_message import send_telegram_message
+from datetime import datetime, timedelta
 from parse_form4 import parse_form4_amount
-import time
+from telegram_bot import send_telegram_message
+
+# Logging for debug
+import logging
+logging.basicConfig(level=logging.INFO)
 
 def main():
-    email = os.getenv("SEC_EMAIL")
-    label = os.getenv("SUMMARY_LABEL", "Morning")
-
-    with open("tickers.txt", "r") as f:
+    tickers = []
+    with open("tickers.txt") as f:
         tickers = [line.strip() for line in f if line.strip()]
+
+    company_name = os.getenv("COMPANY_NAME")
+    sec_email = os.getenv("SEC_EMAIL")
 
     total_buys = 0
     total_sells = 0
 
+    # Rolling date range: last 5 days
+    today = datetime.utcnow().date()
+    five_days_ago = today - timedelta(days=5)
+
     for ticker in tickers:
-        result = parse_form4_amount(ticker, email)
-        total_buys += result["buys"]
-        total_sells += result["sells"]
-        time.sleep(0.5)  # gentle delay for SEC
+        try:
+            amounts = parse_form4_amount(ticker, sec_email, five_days_ago, today)
+            total_buys += amounts["buys"]
+            total_sells += amounts["sells"]
+        except Exception as e:
+            logging.warning(f"Issue with {ticker}: {e}")
 
-    today = datetime.today().strftime("%Y-%m-%d")
+    bias = "Neutral Bias 👀"
+    if total_buys > total_sells:
+        bias = "Buy-Side Bias 👀"
+    elif total_sells > total_buys:
+        bias = "Sell-Side Bias 👀"
 
-    summary = f"""📊 Insider Flow Summary – {today} ({label})
+    summary = f"""📊 Insider Flow Summary – {today} (Morning)
 
-💰 Top Buys: ${total_buys:,}
-💥 Top Sells: ${total_sells:,}
+💰 Top Buys: ${total_buys:,.0f}
+💥 Top Sells: ${total_sells:,.0f}
 
-🧮 Total Buys: ${total_buys / 1e6:.1f}M | Total Sells: ${total_sells / 1e6:.1f}M
-📉 Bias: {"Buy-Side Bias" if total_buys > total_sells else "Sell-Side Bias" if total_sells > total_buys else "Neutral Bias"} 👀
-"""
+🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
+📉 Bias: {bias}"""
+
     send_telegram_message(summary)
 
 if __name__ == "__main__":
