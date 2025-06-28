@@ -2,10 +2,10 @@ import json
 
 def main():
     data = {
-        "top_buys": 999999,
-        "top_sells": 555555,
-        "total_buys": 999999,
-        "total_sells": 555555
+        "top_buys": 5000000,
+        "top_sells": 2000000,
+        "total_buys": 8000000,
+        "total_sells": 3000000
     }
 
     with open("insider_flow.json", "w") as f:
