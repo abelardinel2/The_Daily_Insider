@@ -1,3 +1,2 @@
+sec-edgar-downloader
 requests
-python-telegram-bot
-sqlite3
