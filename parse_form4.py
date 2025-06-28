@@ -57,10 +57,9 @@ def get_recent_form4_amounts(ticker: str, email: str) -> dict:
             continue
 
         xml = resp.text
-        # Very basic tag check (real parser should use lxml or xml.etree)
         if "<transactionAcquiredDisposedCode>A</transactionAcquiredDisposedCode>" in xml:
-            amounts["buys"] += 1  # Example: 1 buy detected
+            amounts["buys"] += 1
         if "<transactionAcquiredDisposedCode>D</transactionAcquiredDisposedCode>" in xml:
-            amounts["sells"] += 1  # Example: 1 sell detected
+            amounts["sells"] += 1
 
     return amounts
