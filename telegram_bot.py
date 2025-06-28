@@ -1,8 +1,5 @@
 import os
 import requests
-import logging
-
-logging.basicConfig(level=logging.INFO)
 
 def send_telegram_message(message):
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -11,10 +8,6 @@ def send_telegram_message(message):
         raise ValueError("Missing Telegram token or chat ID")
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": message}
-    logging.info(f"Sending Telegram message to {chat_id}...")
     resp = requests.post(url, data=payload)
-    if resp.status_code == 200:
-        logging.info("Telegram sent successfully.")
-    else:
-        logging.error(f"Telegram failed: {resp.text}")
+    if resp.status_code != 200:
         raise Exception(f"Telegram error: {resp.text}")
