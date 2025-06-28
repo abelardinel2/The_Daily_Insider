@@ -1,5 +1,2 @@
-sec-edgar-downloader
 requests
 beautifulsoup4
-python-telegram-bot
-lxml
