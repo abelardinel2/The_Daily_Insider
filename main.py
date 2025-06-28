@@ -1,32 +1,41 @@
 import os
-from telegram_bot import send_telegram_message
-from parse_form4 import get_recent_form4_amounts
-from datetime import datetime
+import requests
+from bs4 import BeautifulSoup
 
-TICKERS = ["AAPL", "TSLA", "NVDA"]  # Example test tickers
+from telegram_bot import send_telegram_message  # keep your working telegram_bot.py!
 
-def summarize_insider_flows():
-    email = os.getenv("SEC_EMAIL")
-    label = os.getenv("SUMMARY_LABEL", "Morning")
-    today = datetime.today().strftime("%Y-%m-%d")
+# === CONFIG ===
+SEC_EMAIL = os.getenv("SEC_EMAIL")
+TEST_XML = "https://www.sec.gov/Archives/edgar/data/1853513/000095017025091161/xslF345X03/ownership.xml"
 
-    total_buys = 0
-    total_sells = 0
+# === Run ===
+def parse_test_xml():
+    headers = {
+        "User-Agent": f"Oria Dawn Bot ({SEC_EMAIL})"
+    }
+    resp = requests.get(TEST_XML, headers=headers)
+    if resp.status_code != 200:
+        raise Exception(f"Could not fetch XML: {resp.status_code}")
 
-    for ticker in TICKERS:
-        amounts = get_recent_form4_amounts(ticker, email)
-        total_buys += amounts['buys']
-        total_sells += amounts['sells']
+    soup = BeautifulSoup(resp.text, "xml")
+    codes = soup.find_all("transactionAcquiredDisposedCode")
 
-    summary = f"""📊 Insider Flow Summary – {today} ({label})
+    buys = sum(1 for c in codes if c.text == "A")
+    sells = sum(1 for c in codes if c.text == "D")
 
-💰 Top Buys: ${total_buys:,.0f}
-💥 Top Sells: ${total_sells:,.0f}
+    summary = f"""
+📊 Insider Flow Summary – Direct XML Test
 
-🧮 Total Buys: ${total_buys/1e6:.1f}M | Total Sells: ${total_sells/1e6:.1f}M
-📉 Bias: {"Buy-Side Bias 👀" if total_buys > total_sells else "Sell-Side Bias 👀" if total_sells > total_buys else "Neutral Bias 👀"}
+💰 Buys found: {buys}
+💥 Sells found: {sells}
+
+🧮 Total: Buys {buys} | Sells {sells}
 """
-    send_telegram_message(summary)
+    return summary.strip()
 
 if __name__ == "__main__":
-    summarize_insider_flows()
+    try:
+        message = parse_test_xml()
+        send_telegram_message(message)
+    except Exception as e:
+        send_telegram_message(f"❌ Test Error: {e}")
