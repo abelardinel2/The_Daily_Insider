@@ -1,45 +1,27 @@
-import json
-import requests
 import os
+from fetcher import fetch_all_form4s
+from notifier import send_summary
 
 def main():
-    with open("insider_flow.json") as f:
-        data = json.load(f)
-
-    top_buys = data["top_buys"]
-    top_sells = data["top_sells"]
-    total_buys = data["total_buys"]
-    total_sells = data["total_sells"]
+    buys, sells = fetch_all_form4s(days=5)
 
     bias = "Neutral Bias 👀"
-    if total_buys > total_sells:
+    if buys > sells:
         bias = "Buy-Side Bias 👀"
-    elif total_sells > total_buys:
+    elif sells > buys:
         bias = "Sell-Side Bias 👀"
 
-    message = f"""
+    summary = f"""
 📊 Insider Flow Summary
 
-💰 Top Buys: ${top_buys:,}
-💥 Top Sells: ${top_sells:,}
+💰 Top Buys: {buys}
+💥 Top Sells: {sells}
 
-🧮 Total Buys: ${total_buys:,} | Total Sells: ${total_sells:,}
+🧮 Total Buys: {buys} | Total Sells: {sells}
 📉 Bias: {bias}
 """
-
-    BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message}
-
-    resp = requests.post(url, json=payload)
-
-    if resp.status_code == 200:
-        print("✅ Telegram message sent!")
-    else:
-        print(f"❌ Failed to send Telegram. Status: {resp.status_code}, Response: {resp.text}")
-        resp.raise_for_status()
+    print(summary)
+    send_summary(summary)
 
 if __name__ == "__main__":
     main()
