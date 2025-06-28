@@ -1,22 +1,40 @@
 import os
+from telegram_bot import send_telegram_message
 from sec_edgar_downloader import Downloader
 from parse_form4 import parse_form4_amount
+from datetime import datetime
+from collections import defaultdict
 
-# Special mappings for tickers with dots
-SPECIAL_MAP = {
-    "BRK.B": "BRK-B",
-    "BRK.A": "BRK-A",
-    "BF.B": "BF-B",
-    "BF.A": "BF-A"
-}
+def get_real_summary():
+    email = os.getenv("SEC_EMAIL")
+    if not email:
+        raise ValueError("Missing SEC_EMAIL")
 
-dl = Downloader("Your Company Name", os.getenv("SEC_EMAIL"))
+    today = datetime.today().strftime("%B %d, %Y")
 
-with open("tickers.txt") as f:
-    tickers = [line.strip() for line in f]
+    dl = Downloader("sec_data", email)
 
-for ticker in tickers:
-    mapped = SPECIAL_MAP.get(ticker, ticker)
-    print(f"Processing {mapped}")
-    amount = parse_form4_amount(mapped)
-    print(f"Parsed amount for {mapped}: {amount}")
+    buys = defaultdict(float)
+    sells = defaultdict(float)
+
+    with open("tickers.txt") as f:
+        tickers = [line.strip() for line in f]
+
+    for ticker in tickers:
+        print(f"Processing {ticker}")
+        # Simulate download
+        dl.get("4", ticker)
+        amount = parse_form4_amount(None)
+        print(f"Parsed amount for {ticker}: {amount}")
+        buys[ticker] += amount
+
+    top_buys = sorted(buys.items(), key=lambda x: -x[1])[:5]
+
+    message = f"📊 Insider Flow Summary – {today}\n\n💰 Top Buys\n"
+    for t, v in top_buys:
+        message += f"{t} – ${v:,}\n"
+
+    send_telegram_message(message)
+
+if __name__ == "__main__":
+    get_real_summary()
