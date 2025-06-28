@@ -1,14 +1,6 @@
-import os
-import requests
 import json
-
-def send_message(message):
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": message}
-    resp = requests.post(url, data=payload)
-    resp.raise_for_status()
+import requests
+import os
 
 def main():
     with open("insider_flow.json") as f:
@@ -34,7 +26,17 @@ def main():
 🧮 Total Buys: ${total_buys:,} | Total Sells: ${total_sells:,}
 📉 Bias: {bias}
 """
-    send_message(message)
+
+    BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": CHAT_ID, "text": message}
+
+    resp = requests.post(url, json=payload)
+    resp.raise_for_status()
+
+    print("✅ Telegram message sent!")
 
 if __name__ == "__main__":
     main()
