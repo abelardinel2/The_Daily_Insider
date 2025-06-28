@@ -13,12 +13,14 @@ def parse_form4_xml(url: str) -> dict:
 
     for txn in soup.find_all("nonDerivativeTransaction"):
         code = txn.transactionCode.string if txn.transactionCode else ""
-        amount_node = txn.find("transactionShares")
-        amount = float(amount_node.value.string) if amount_node else 0
+        acquired_or_disposed = txn.transactionAcquiredDisposedCode.string if txn.transactionAcquiredDisposedCode else ""
 
-        if code == "P":   # Purchase
+        amount_node = txn.find("transactionShares")
+        amount = float(amount_node.value.string) if amount_node and amount_node.value else 0
+
+        if code == "P" or acquired_or_disposed == "A":
             buys += amount
-        elif code == "S": # Sale
+        elif code == "S" or acquired_or_disposed == "D":
             sells += amount
 
     return {"buys": buys, "sells": sells}
