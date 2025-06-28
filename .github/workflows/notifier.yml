@@ -2,7 +2,7 @@ name: Send Daily Telegram
 
 on:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 12 * * *'  # runs daily at 12:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -23,5 +23,4 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SUMMARY_LABEL: "Morning"
         run: python main.py
