@@ -1,41 +1,36 @@
 import os
-import requests
-from bs4 import BeautifulSoup
+from datetime import datetime
+from send_telegram_message import send_telegram_message
+from parse_form4 import parse_form4_amount
+import time
 
-from telegram_bot import send_telegram_message  # keep your working telegram_bot.py!
+def main():
+    email = os.getenv("SEC_EMAIL")
+    label = os.getenv("SUMMARY_LABEL", "Morning")
 
-# === CONFIG ===
-SEC_EMAIL = os.getenv("SEC_EMAIL")
-TEST_XML = "https://www.sec.gov/Archives/edgar/data/1853513/000095017025091161/xslF345X03/ownership.xml"
+    with open("tickers.txt", "r") as f:
+        tickers = [line.strip() for line in f if line.strip()]
 
-# === Run ===
-def parse_test_xml():
-    headers = {
-        "User-Agent": f"Oria Dawn Bot ({SEC_EMAIL})"
-    }
-    resp = requests.get(TEST_XML, headers=headers)
-    if resp.status_code != 200:
-        raise Exception(f"Could not fetch XML: {resp.status_code}")
+    total_buys = 0
+    total_sells = 0
 
-    soup = BeautifulSoup(resp.text, "xml")
-    codes = soup.find_all("transactionAcquiredDisposedCode")
+    for ticker in tickers:
+        result = parse_form4_amount(ticker, email)
+        total_buys += result["buys"]
+        total_sells += result["sells"]
+        time.sleep(0.5)  # gentle delay for SEC
 
-    buys = sum(1 for c in codes if c.text == "A")
-    sells = sum(1 for c in codes if c.text == "D")
+    today = datetime.today().strftime("%Y-%m-%d")
 
-    summary = f"""
-📊 Insider Flow Summary – Direct XML Test
+    summary = f"""📊 Insider Flow Summary – {today} ({label})
 
-💰 Buys found: {buys}
-💥 Sells found: {sells}
+💰 Top Buys: ${total_buys:,}
+💥 Top Sells: ${total_sells:,}
 
-🧮 Total: Buys {buys} | Sells {sells}
+🧮 Total Buys: ${total_buys / 1e6:.1f}M | Total Sells: ${total_sells / 1e6:.1f}M
+📉 Bias: {"Buy-Side Bias" if total_buys > total_sells else "Sell-Side Bias" if total_sells > total_buys else "Neutral Bias"} 👀
 """
-    return summary.strip()
+    send_telegram_message(summary)
 
 if __name__ == "__main__":
-    try:
-        message = parse_test_xml()
-        send_telegram_message(message)
-    except Exception as e:
-        send_telegram_message(f"❌ Test Error: {e}")
+    main()
