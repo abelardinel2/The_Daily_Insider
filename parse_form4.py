@@ -1,51 +1,32 @@
-import requests
 from bs4 import BeautifulSoup
+import requests
+import os
 
-SEC_BASE_URL = "https://data.sec.gov"
+SEC_EMAIL = os.getenv("SEC_EMAIL")
+TEST_XML = "https://www.sec.gov/Archives/edgar/data/1853513/000095017025091161/xslF345X03/ownership.xml"
 
-def get_recent_form4_amounts(ticker: str, email: str) -> dict:
+def parse_test_xml():
     headers = {
-        "User-Agent": f"InsiderFlowBot/1.0 (https://oriadawn.xyz; {email})"
+        "User-Agent": f"Oria Dawn Bot ({SEC_EMAIL})"
     }
+    resp = requests.get(TEST_XML, headers=headers)
+    if resp.status_code != 200:
+        raise Exception(f"Could not fetch XML: {resp.status_code}")
 
-    # Get CIK mapping
-    cik_lookup = requests.get(
-        f"https://www.sec.gov/files/company_tickers.json",
-        headers=headers
-    ).json()
+    soup = BeautifulSoup(resp.text, "lxml-xml")
 
-    cik = None
-    for k, v in cik_lookup.items():
-        if v['ticker'].upper() == ticker.upper():
-            cik = str(v['cik_str']).zfill(10)
-            break
+    # More robust: finds normal & derivative nodes
+    codes = soup.find_all(["transactionAcquiredDisposedCode", "derivativeTransactionAcquiredDisposedCode"])
 
-    if not cik:
-        raise ValueError(f"Could not find CIK for ticker: {ticker}")
+    buys = sum(1 for c in codes if c.text.strip().upper() == "A")
+    sells = sum(1 for c in codes if c.text.strip().upper() == "D")
 
-    submissions = requests.get(
-        f"{SEC_BASE_URL}/submissions/CIK{cik}.json",
-        headers=headers
-    ).json()
+    summary = f"""
+📊 Insider Flow Summary – Direct XML Test (Improved)
 
-    amounts = {"buys": 0, "sells": 0}
+💰 Buys found: {buys}
+💥 Sells found: {sells}
 
-    acc_nums = submissions['filings']['recent']['accessionNumber'][:5]
-    for acc_num in acc_nums:
-        acc_num_clean = acc_num.replace("-", "")
-        url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_num_clean}/xslF345X03/{acc_num}.xml"
-
-        resp = requests.get(url, headers=headers)
-        if resp.status_code != 200:
-            continue
-
-        soup = BeautifulSoup(resp.content, "xml")
-        acquired = soup.find_all("transactionAcquiredDisposedCode")
-
-        for tag in acquired:
-            if tag.text == "A":
-                amounts['buys'] += 1_000_000  # Example $1M per buy
-            elif tag.text == "D":
-                amounts['sells'] += 1_000_000  # Example $1M per sell
-
-    return amounts
+🧮 Total: Buys {buys} | Sells {sells}
+"""
+    return summary.strip()
