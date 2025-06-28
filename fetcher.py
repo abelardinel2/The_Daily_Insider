@@ -1,7 +1,6 @@
 import json
 
 def main():
-    # Example logic for fake data per ticker
     tickers = []
     with open("tickers.txt") as f:
         tickers = [line.strip() for line in f.readlines() if line.strip()]
@@ -11,8 +10,7 @@ def main():
     total_sells = 0
 
     for ticker in tickers:
-        # Example: fake numbers — replace with real parse in future
-        buys = 1000000  # Example static placeholder
+        buys = 1000000  # placeholder example
         sells = 500000
         total_buys += buys
         total_sells += sells
