@@ -1,51 +1,44 @@
 import requests
 import os
 from datetime import datetime, timedelta
+from parse_form4 import parse_form4_xml
+import json
 
 SEC_BASE = "https://data.sec.gov"
+headers = {"User-Agent": f"{os.getenv('SEC_EMAIL')} (Insider Flow Analyzer)"}
 
-def fetch_all_form4s(days=5):
-    email = os.getenv("SEC_EMAIL")
-    headers = {
-        "User-Agent": f"{email} (Oria Dawn Analytics)"
-    }
-
+def fetch_all_form4s(days=1):
     end_date = datetime.today()
     start_date = end_date - timedelta(days=days)
 
-    buys, sells = 0, 0
+    total_buys = 0
+    total_sells = 0
 
-    # Pull master company list
-    company_index = requests.get(f"{SEC_BASE}/files/company_tickers.json", headers=headers).json()
+    company_index = requests.get(f"{SEC_BASE}/submissions/CIK0000320193.json", headers=headers).json()
+    for entry in company_index["filings"]["recent"]["accessionNumber"]:
+        acc_num = entry.replace("-", "")
+        filing_date = company_index["filings"]["recent"]["filingDate"][0]
+        filed_dt = datetime.strptime(filing_date, "%Y-%m-%d")
 
-    for entry in company_index.values():
-        cik = str(entry['cik_str']).zfill(10)
-        sub_url = f"{SEC_BASE}/submissions/CIK{cik}.json"
-        resp = requests.get(sub_url, headers=headers)
-        if resp.status_code != 200:
+        if not (start_date <= filed_dt <= end_date):
             continue
 
-        filings = resp.json().get("filings", {}).get("recent", {})
-        for idx, form in enumerate(filings.get("form", [])):
-            if form != "4":
-                continue
+        xml_url = f"https://www.sec.gov/Archives/edgar/data/{company_index['cik']}/{acc_num}.xml"
+        result = parse_form4_xml(xml_url)
+        total_buys += result["buys"]
+        total_sells += result["sells"]
 
-            filed_date = filings.get("filingDate", [])[idx]
-            filed_dt = datetime.strptime(filed_date, "%Y-%m-%d")
-            if not (start_date <= filed_dt <= end_date):
-                continue
+    data = {
+        "top_buys": total_buys,
+        "top_sells": total_sells,
+        "total_buys": total_buys,
+        "total_sells": total_sells
+    }
 
-            acc_num = filings.get("accessionNumber", [])[idx].replace("-", "")
-            url = f"{SEC_BASE}/Archives/edgar/data/{int(cik)}/{acc_num}/xslF345X03/{filings['accessionNumber'][idx]}.xml"
+    with open("insider_flow.json", "w") as f:
+        json.dump(data, f, indent=2)
 
-            doc = requests.get(url, headers=headers)
-            if doc.status_code != 200:
-                continue
+    print("✅ insider_flow.json updated!")
 
-            xml = doc.text
-            if "<transactionAcquiredDisposedCode>A</transactionAcquiredDisposedCode>" in xml:
-                buys += 1
-            if "<transactionAcquiredDisposedCode>D</transactionAcquiredDisposedCode>" in xml:
-                sells += 1
-
-    return buys, sells
+if __name__ == "__main__":
+    fetch_all_form4s()
