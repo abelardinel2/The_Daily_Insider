@@ -1,40 +1,46 @@
 import os
+import sqlite3
 from datetime import datetime
-from parse_form4 import parse_form4_amount
 from telegram_bot import send_telegram_message
 
-def main():
-    tickers = []
-    with open("tickers.txt", "r") as f:
-        tickers = [line.strip() for line in f.readlines() if line.strip()]
+DB_PATH = "/data/insider.db" if os.getenv("RAILWAY_VOLUME") else "insider.db"
 
-    buys = sells = 0
+def save_summary(buys, sells, bias):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS summaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            buys INTEGER,
+            sells INTEGER,
+            bias TEXT
+        )
+    """)
+    c.execute("""
+        INSERT INTO summaries (date, buys, sells, bias)
+        VALUES (?, ?, ?, ?)
+    """, (datetime.now().strftime("%Y-%m-%d %H:%M"), buys, sells, bias))
+    conn.commit()
+    conn.close()
 
-    for ticker in tickers:
-        amount = parse_form4_amount(ticker)
-        if amount > 0:
-            buys += amount
-        else:
-            sells += abs(amount)
-
-    bias = "Neutral Bias 👀"
-    if buys > sells:
-        bias = "Buy-Side Bias 👀"
-    elif sells > buys:
-        bias = "Sell-Side Bias 👀"
-
-    summary = f"""📊 Insider Flow Summary – {datetime.today().strftime('%B %d, %Y')} (Morning)
-
-💰 Top Buys: ${buys:,}
-💥 Top Sells: ${sells:,}
-
-🧮 Total Buys: ${buys/1e6:.1f}M | Total Sells: ${sells/1e6:.1f}M
-📉 Bias: {bias}"""
-
-    send_telegram_message(summary)
-
-    with open("snapshot.txt", "w") as f:
-        f.write(summary)
+def get_summary():
+    # Dummy data for now
+    buys = 50000000
+    sells = 0
+    bias = "Buy-Side Bias"
+    return buys, sells, bias
 
 if __name__ == "__main__":
-    main()
+    buys, sells, bias = get_summary()
+    save_summary(buys, sells, bias)
+    message = f"""📊 Insider Flow Summary – {datetime.now().strftime('%B %d, %Y')} (Morning)
+
+💰 Top Buys: ${buys:,.0f}
+💥 Top Sells: ${sells:,.0f}
+
+🧮 Total Buys: ${buys/1e6:.1f}M | Total Sells: ${sells/1e6:.1f}M
+📉 Bias: {bias} 👀
+"""
+    send_telegram_message(message)
+    print("✅ Summary sent & saved.")
