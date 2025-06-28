@@ -1,5 +1,4 @@
 import json
-from send_telegram import send_telegram_message
 
 def main():
     with open("insider_flow.json") as f:
@@ -16,7 +15,7 @@ def main():
     elif total_sells > total_buys:
         bias = "Sell-Side Bias 👀"
 
-    message = f"""
+    print(f"""
 📊 Insider Flow Summary
 
 💰 Top Buys: ${top_buys:,}
@@ -24,10 +23,7 @@ def main():
 
 🧮 Total Buys: ${total_buys:,} | Total Sells: ${total_sells:,}
 📉 Bias: {bias}
-"""
-
-    print(message)
-    send_telegram_message(message)
+""")
 
 if __name__ == "__main__":
     main()
