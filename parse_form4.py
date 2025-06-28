@@ -1,9 +1,12 @@
 import requests
+from datetime import datetime
 
 SEC_BASE_URL = "https://data.sec.gov"
 
-def get_recent_form4_amounts(ticker: str, email: str, target_date: str) -> dict:
-    headers = {"User-Agent": f"{email} (InsiderFlowBot)"}
+def get_recent_form4_amounts(ticker: str, email: str, days_back: int) -> dict:
+    headers = {
+        "User-Agent": f"{email} (InsiderFlowBot)"
+    }
 
     cik_lookup = requests.get(
         "https://www.sec.gov/files/company_tickers.json",
@@ -24,23 +27,33 @@ def get_recent_form4_amounts(ticker: str, email: str, target_date: str) -> dict:
         headers=headers
     ).json()
 
+    accession_numbers = submissions['filings']['recent']['accessionNumber'][:10]
+
+    cutoff = datetime.today() - timedelta(days=days_back)
+
     amounts = {"buys": 0, "sells": 0}
 
-    accession_numbers = submissions['filings']['recent']['accessionNumber'][:10]
-    filing_dates = submissions['filings']['recent']['filingDate'][:10]
-
-    for acc_num, f_date in zip(accession_numbers, filing_dates):
-        if f_date != target_date:
-            continue
-
-        acc_num_clean = acc_num.replace("-", "")
-        doc_url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_num_clean}/xslF345X03/{acc_num}.xml"
+    for acc_num in accession_numbers:
+        acc_clean = acc_num.replace("-", "")
+        doc_url = f"{SEC_BASE_URL}/Archives/edgar/data/{int(cik)}/{acc_clean}/xslF345X03/{acc_num}.xml"
 
         resp = requests.get(doc_url, headers=headers)
         if resp.status_code != 200:
             continue
 
         xml = resp.text
+
+        if "<transactionDate>" not in xml:
+            continue
+
+        try:
+            tx_date = xml.split("<transactionDate>")[1].split("</transactionDate>")[0]
+            tx_date_obj = datetime.strptime(tx_date, "%Y-%m-%d")
+            if tx_date_obj < cutoff:
+                continue
+        except:
+            continue
+
         if "<transactionAcquiredDisposedCode>A</transactionAcquiredDisposedCode>" in xml:
             amounts["buys"] += 1
         if "<transactionAcquiredDisposedCode>D</transactionAcquiredDisposedCode>" in xml:
