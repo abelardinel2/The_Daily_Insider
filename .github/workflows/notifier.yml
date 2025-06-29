@@ -42,30 +42,30 @@ try:
   date_range = f'{start_date}–{end_date}'  # June 24–June 29, 2025
   print(f'Debug: start_date={start_date}, end_date={end_date}')
 
-  # If-then logic for bias label
+  # Middle man step: Calculate and cap dominance ratio
   if total_buys + total_sells > 0:
-    if total_sells > total_buys:
+    if total_sells > total_buys and total_buys > 0:  # Avoid division by zero
       ratio = total_sells / total_buys
-      if ratio > 1000:
-        bias_label = 'Overwhelming Sell Dominance'
-      elif ratio > 10:
-        bias_label = 'Strong Sell Dominance'
+      if ratio > 10000:  # Cap extreme dominance
+        dominance_level = 'Overwhelming Sell Dominance'
+      elif ratio > 100:
+        dominance_level = 'Strong Sell Dominance'
       else:
-        bias_label = 'Mild Sell Dominance'
-    elif total_buys > total_sells:
+        dominance_level = 'Mild Sell Dominance'
+    elif total_buys > total_sells and total_sells > 0:
       ratio = total_buys / total_sells
-      if ratio > 1000:
-        bias_label = 'Overwhelming Buy Dominance'
-      elif ratio > 10:
-        bias_label = 'Strong Buy Dominance'
+      if ratio > 10000:
+        dominance_level = 'Overwhelming Buy Dominance'
+      elif ratio > 100:
+        dominance_level = 'Strong Buy Dominance'
       else:
-        bias_label = 'Mild Buy Dominance'
+        dominance_level = 'Mild Buy Dominance'
     else:
-      bias_label = 'Balanced Market'
+      dominance_level = 'Balanced Market'
   else:
-    bias_label = 'No Data'
+    dominance_level = 'No Data'
 
-  bias_detail = f'{bias_label} 👀'
+  bias_detail = f'{dominance_level} 👀'
 
   # Format the message
   msg = f'''
