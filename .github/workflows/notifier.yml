@@ -42,16 +42,16 @@ try:
   date_range = f'{start_date}–{end_date}'  # June 24–June 29, 2025
   print(f'Debug: start_date={start_date}, end_date={end_date}')
 
-  # Calculate bias percentages with 95% cap
+  # Calculate bias percentages with adjustment before rounding
   total_value = total_buys + total_sells
   buy_pct_unrounded = (total_buys / total_value * 100)
   sell_pct_unrounded = (total_sells / total_value * 100)
+  # Adjust if buy_pct is tiny
+  if buy_pct_unrounded < 0.01:  # Check unrounded value
+    sell_pct_unrounded = 99.98  # Cap sell at 99.98%
+    buy_pct_unrounded = 0.02    # Assign minimal buy
   buy_pct = round(buy_pct_unrounded, 2)
   sell_pct = round(sell_pct_unrounded, 2)
-  # Adjust to avoid 100% by capping at 95% if buy_pct is tiny
-  if buy_pct < 0.1:  # Threshold for negligible buy
-    sell_pct = 95.0
-    buy_pct = 5.0    # Balance with 5%
   bias_label = 'Neutral Bias' if abs(buy_pct - sell_pct) < 1 else ('Buy-Side Bias' if buy_pct > sell_pct else 'Sell-Side Bias')
   bias_detail = f'{bias_label} ({sell_pct:.2f}% sell, {buy_pct:.2f}% buy) 👀'
 
