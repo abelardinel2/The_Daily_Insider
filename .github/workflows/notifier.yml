@@ -42,30 +42,38 @@ try:
   date_range = f'{start_date}–{end_date}'  # June 24–June 29, 2025
   print(f'Debug: start_date={start_date}, end_date={end_date}')
 
-  # Ratio-based bias calculation
-  if total_buys + total_sells > 0:
-    if total_sells > total_buys and total_buys > 0:  # Avoid division by zero
+  # If-then logic with ratio calculation
+  if total_buys + total_sells > 0:  # Ensure valid total
+    if total_sells > total_buys and total_buys > 0:  # Then calculate sell dominance
       ratio = total_sells / total_buys
-      dominance_label = 'Sell Dominance Ratio'
       if ratio > 10000:
-        display_ratio = '99.99+'
-      else:
+        dominance_label = 'Overwhelming Sell Dominance'
+        display_ratio = f'{ratio:.2e}'  # Scientific notation for large numbers
+      elif ratio > 100:
+        dominance_label = 'Strong Sell Dominance'
         display_ratio = f'{round(ratio, 2)}'
-    elif total_buys > total_sells and total_sells > 0:
+      else:
+        dominance_label = 'Mild Sell Dominance'
+        display_ratio = f'{round(ratio, 2)}'
+    elif total_buys > total_sells and total_sells > 0:  # Then calculate buy dominance
       ratio = total_buys / total_sells
-      dominance_label = 'Buy Dominance Ratio'
       if ratio > 10000:
-        display_ratio = '99.99+'
-      else:
+        dominance_label = 'Overwhelming Buy Dominance'
+        display_ratio = f'{ratio:.2e}'
+      elif ratio > 100:
+        dominance_label = 'Strong Buy Dominance'
         display_ratio = f'{round(ratio, 2)}'
-    else:
+      else:
+        dominance_label = 'Mild Buy Dominance'
+        display_ratio = f'{round(ratio, 2)}'
+    else:  # Then neutral if equal or near equal
       dominance_label = 'Balanced Market'
       display_ratio = '1.00'
-  else:
+  else:  # Then handle zero case
     dominance_label = 'No Data'
     display_ratio = 'N/A'
 
-  bias_detail = f'{dominance_label} ({display_ratio}) 👀'
+  bias_detail = f'{dominance_label} (Ratio: {display_ratio}) 👀'
 
   # Format the message
   msg = f'''
