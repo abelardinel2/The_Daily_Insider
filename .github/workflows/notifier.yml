@@ -34,7 +34,7 @@ try:
   top_buys = float(data['top_buys'])
   top_sells = float(data['top_sells'])
   total_buys = float(data['total_buys'])
-  total_sells = float(data['total_sells'])
+  total_sells = float(data['top_sells'])
 
   # Calculate the 5-day date range ending today
   end_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).strftime('%B %d, %Y')  # June 29, 2025
@@ -42,47 +42,21 @@ try:
   date_range = f'{start_date}–{end_date}'  # June 24–June 29, 2025
   print(f'Debug: start_date={start_date}, end_date={end_date}')
 
-  # Calculate bias with 99% cap for extreme ratios
-  total_value = total_buys + total_sells
-  if total_sells > total_buys:
-    ratio = total_buys / total_sells
-    if ratio < 0.01 or total_buys == 0:  # Ensure cap for tiny or zero buys
-      sell_pct = 99.0
-      buy_pct = 1.0
-    else:
-      sell_pct = 50.0 + (50.0 * (1 - ratio / 0.01))
-      buy_pct = 100.0 - sell_pct
-    bias_label = 'Sell-Side Bias'
-  elif total_buys > total_sells:
-    ratio = total_sells / total_buys
-    if ratio < 0.01 or total_sells == 0:
-      buy_pct = 99.0
-      sell_pct = 1.0
-    else:
-      buy_pct = 50.0 + (50.0 * (1 - ratio / 0.01))
-      sell_pct = 100.0 - buy_pct
-    bias_label = 'Buy-Side Bias'
-  else:
-    buy_pct = 50.0
-    sell_pct = 50.0
-    bias_label = 'Neutral Bias'
-
-  buy_pct = round(buy_pct, 2)
-  sell_pct = round(sell_pct, 2)
-  bias_detail = f'{bias_label} ({sell_pct:.2f}% sell, {buy_pct:.2f}% buy) 👀'
-
-  # Format the message
-  msg = f'''
-  📊 Insider Flow Summary ({date_range})
-
-  💰 Top Buys: ${top_buys:,.2f}
-  💥 Top Sells: ${top_sells:,.2f}
-
-  🧮 Total Buys: ${total_buys:,.2f} | Total Sells: ${total_sells:,.2f}
-  📉 {bias_detail}
-  '''
-
-  url = f'https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage'
-  response = requests.post(url, json={'chat_id': os.getenv('TELEGRAM_CHAT_ID'), 'text': msg})
-  response.raise_for_status()
-  print('✅ Telegram sent
+  # If-then logic for bias calculation
+  if total_buys + total_sells > 0:  # Ensure valid total
+    if total_sells > total_buys:  # Then check if sells dominate
+      ratio = total_sells / total_buys
+      if ratio > 100:  # Then cap extreme dominance
+        dominance_factor = 99.99  # Cap to avoid infinity display
+        bias_label = 'Sell-Side Dominance'
+      else:
+        dominance_factor = round(ratio, 2)
+        bias_label = 'Sell-Side Dominance'
+    elif total_buys > total_sells:  # Then check if buys dominate
+      ratio = total_buys / total_sells
+      if ratio > 100:  # Then cap extreme dominance
+        dominance_factor = 99.99
+        bias_label = 'Buy-Side Dominance'
+      else:
+        dominance_factor = round(ratio, 2)
+        bias_label = 'Buy
