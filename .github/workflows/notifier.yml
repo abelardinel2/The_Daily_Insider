@@ -34,7 +34,7 @@ try:
   top_buys = float(data['top_buys'])
   top_sells = float(data['top_sells'])
   total_buys = float(data['total_buys'])
-  total_sells = float(data['top_sells'])
+  total_sells = float(data['total_sells'])
 
   # Calculate the 5-day date range ending today
   end_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).strftime('%B %d, %Y')  # June 29, 2025
@@ -42,21 +42,47 @@ try:
   date_range = f'{start_date}–{end_date}'  # June 24–June 29, 2025
   print(f'Debug: start_date={start_date}, end_date={end_date}')
 
-  # If-then logic for bias calculation
-  if total_buys + total_sells > 0:  # Ensure valid total
-    if total_sells > total_buys:  # Then check if sells dominate
+  # If-then logic for bias label
+  if total_buys + total_sells > 0:
+    if total_sells > total_buys:
       ratio = total_sells / total_buys
-      if ratio > 100:  # Then cap extreme dominance
-        dominance_factor = 99.99  # Cap to avoid infinity display
-        bias_label = 'Sell-Side Dominance'
+      if ratio > 1000:
+        bias_label = 'Overwhelming Sell Dominance'
+      elif ratio > 10:
+        bias_label = 'Strong Sell Dominance'
       else:
-        dominance_factor = round(ratio, 2)
-        bias_label = 'Sell-Side Dominance'
-    elif total_buys > total_sells:  # Then check if buys dominate
+        bias_label = 'Mild Sell Dominance'
+    elif total_buys > total_sells:
       ratio = total_buys / total_sells
-      if ratio > 100:  # Then cap extreme dominance
-        dominance_factor = 99.99
-        bias_label = 'Buy-Side Dominance'
+      if ratio > 1000:
+        bias_label = 'Overwhelming Buy Dominance'
+      elif ratio > 10:
+        bias_label = 'Strong Buy Dominance'
       else:
-        dominance_factor = round(ratio, 2)
-        bias_label = 'Buy
+        bias_label = 'Mild Buy Dominance'
+    else:
+      bias_label = 'Balanced Market'
+  else:
+    bias_label = 'No Data'
+
+  bias_detail = f'{bias_label} 👀'
+
+  # Format the message
+  msg = f'''
+  📊 Insider Flow Summary ({date_range})
+
+  💰 Top Buys: ${top_buys:,.2f}
+  💥 Top Sells: ${top_sells:,.2f}
+
+  🧮 Total Buys: ${total_buys:,.2f} | Total Sells: ${total_sells:,.2f}
+  📉 {bias_detail}
+  '''
+
+  url = f'https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage'
+  response = requests.post(url, json={'chat_id': os.getenv('TELEGRAM_CHAT_ID'), 'text': msg})
+  response.raise_for_status()
+  print('✅ Telegram sent!')
+except Exception as e:
+  print(f'❌ Error: {e}')
+  raise
+"
