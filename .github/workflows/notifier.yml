@@ -48,7 +48,7 @@ try:
       ratio = total_sells / total_buys
       dominance_label = 'Sell Dominance Ratio'
       if ratio > 10000:
-        display_ratio = '99.99+'  # Cap for readability
+        display_ratio = '99.99+'
       else:
         display_ratio = f'{round(ratio, 2)}'
     elif total_buys > total_sells and total_sells > 0:
