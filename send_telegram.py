@@ -14,41 +14,45 @@ def send_summary(data):
     start_date = (datetime.today() - timedelta(days=5)).replace(hour=0, minute=0, second=0, microsecond=0).strftime("%B %d, %Y")
     date_range = f"{start_date}–{end_date}"  # e.g., "June 24–June 29, 2025"
 
-    # If-then logic with ratio and percentage conversion
+    # If-then logic with ratio and fractional favor
     if total_buys + total_sells > 0:
         total_value = total_buys + total_sells
         if total_sells > total_buys and total_buys > 0:  # Avoid division by zero
             ratio = total_sells / total_buys
-            sell_pct = (total_sells / total_value) * 100
-            buy_pct = (total_buys / total_value) * 100
             if ratio > 10000:
                 dominance_label = 'Overwhelming Sell Dominance'
+                favor_denominator = min(round(ratio), 100)  # Cap at 100 for readability
+                favor_text = f"1 in {favor_denominator} favors buy"
             elif ratio > 100:
                 dominance_label = 'Strong Sell Dominance'
+                favor_denominator = round(ratio)
+                favor_text = f"1 in {favor_denominator} favors buy"
             else:
                 dominance_label = 'Mild Sell Dominance'
-            display_pct = f"{sell_pct:.2f}% sell, {buy_pct:.2f}% buy"
+                favor_denominator = round(ratio)
+                favor_text = f"1 in {favor_denominator} favors buy"
         elif total_buys > total_sells and total_sells > 0:
             ratio = total_buys / total_sells
-            sell_pct = (total_sells / total_value) * 100
-            buy_pct = (total_buys / total_value) * 100
             if ratio > 10000:
                 dominance_label = 'Overwhelming Buy Dominance'
+                favor_denominator = min(round(ratio), 100)
+                favor_text = f"1 in {favor_denominator} favors sell"
             elif ratio > 100:
                 dominance_label = 'Strong Buy Dominance'
+                favor_denominator = round(ratio)
+                favor_text = f"1 in {favor_denominator} favors sell"
             else:
                 dominance_label = 'Mild Buy Dominance'
-            display_pct = f"{buy_pct:.2f}% buy, {sell_pct:.2f}% sell"
+                favor_denominator = round(ratio)
+                favor_text = f"1 in {favor_denominator} favors sell"
         else:
             dominance_label = 'Balanced Market'
-            sell_pct = 50.0
-            buy_pct = 50.0
-            display_pct = f"{buy_pct:.2f}% buy, {sell_pct:.2f}% sell"
+            favor_text = "1 in 1 favors both"
     else:
         dominance_label = 'No Data'
-        display_pct = 'N/A'
+        favor_text = 'N/A'
 
-    bias_detail = f'{dominance_label} ({display_pct}) 👀'
+    bias_detail = f'{dominance_label} ({favor_text}) 👀'
 
     # Format the message with consistent decimals
     message = f"""
