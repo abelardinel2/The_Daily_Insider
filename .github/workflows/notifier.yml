@@ -40,12 +40,12 @@ try:
   end_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).strftime('%B %d, %Y')  # June 29, 2025
   start_date = (datetime.today() - timedelta(days=5)).replace(hour=0, minute=0, second=0, microsecond=0).strftime('%B %d, %Y')  # June 24, 2025
   date_range = f'{start_date}–{end_date}'  # June 24–June 29, 2025
-  print(f'Debug: start_date={start_date}, end_date={end_date}')  # Debug output
+  print(f'Debug: start_date={start_date}, end_date={end_date}')
 
-  # Calculate bias percentages with precise floating-point arithmetic
-  total_value = float(total_buys + total_sells) if total_buys + total_sells > 0 else 1.0
-  buy_pct = round((total_buys / total_value * 100), 4)
-  sell_pct = round((total_sells / total_value * 100), 4)
+  # Calculate bias percentages with higher precision
+  total_value = float(total_buys) + float(total_sells)  # Explicit float conversion
+  buy_pct = round((float(total_buys) / total_value * 100), 4)
+  sell_pct = round((float(total_sells) / total_value * 100), 4)
   bias_label = 'Neutral Bias' if abs(buy_pct - sell_pct) < 1 else ('Buy-Side Bias' if buy_pct > sell_pct else 'Sell-Side Bias')
   bias_detail = f'{bias_label} ({sell_pct:.2f}% sell, {buy_pct:.2f}% buy) 👀'
 
