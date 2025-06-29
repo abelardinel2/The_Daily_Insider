@@ -35,19 +35,19 @@ top_sells = data['top_sells']
 total_buys = data['total_buys']
 total_sells = data['total_sells']
 
-# Calculate the 5-day date range
-end_date = datetime.today().strftime('%B %d, %Y')
-start_date = (datetime.today() - timedelta(days=5)).strftime('%B %d, %Y')
+# Calculate the 5-day date range ending today
+end_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).strftime('%B %d, %Y')
+start_date = (datetime.today() - timedelta(days=4)).replace(hour=0, minute=0, second=0, microsecond=0).strftime('%B %d, %Y')
 date_range = f'{start_date}–{end_date}'  # e.g., 'June 23–June 28, 2025'
 
-# Calculate bias percentages
-total_value = total_buys + total_sells if total_buys + total_sells > 0 else 1
-buy_pct = (total_buys / total_value * 100) if total_value > 0 else 0
-sell_pct = (total_sells / total_value * 100) if total_value > 0 else 0
+# Calculate bias percentages with precise rounding
+total_value = float(total_buys + total_sells) if total_buys + total_sells > 0 else 1.0
+buy_pct = round((total_buys / total_value * 100), 2) if total_value > 0 else 0.0
+sell_pct = round((total_sells / total_value * 100), 2) if total_value > 0 else 0.0
 bias_label = 'Neutral Bias' if abs(buy_pct - sell_pct) < 1 else ('Buy-Side Bias' if buy_pct > sell_pct else 'Sell-Side Bias')
-bias_detail = f'{bias_label} ({sell_pct:.2f}% sell, {buy_pct:.2f}% buy) 👀'
+bias_detail = f'{bias_label} ({sell_pct}% sell, {buy_pct}% buy) 👀'
 
-# Format the message with consistent decimals
+# Format the message
 msg = f'''
 📊 Insider Flow Summary ({date_range})
 
