@@ -42,17 +42,24 @@ try:
   date_range = f'{start_date}–{end_date}'  # June 24–June 29, 2025
   print(f'Debug: start_date={start_date}, end_date={end_date}')
 
-  # Calculate bias percentages with adjustment before rounding
-  total_value = total_buys + total_sells
-  buy_pct_unrounded = (total_buys / total_value * 100)
-  sell_pct_unrounded = (total_sells / total_value * 100)
-  # Adjust if buy_pct is tiny
-  if buy_pct_unrounded < 0.01:  # Check unrounded value
-    sell_pct_unrounded = 99.98  # Cap sell at 99.98%
-    buy_pct_unrounded = 0.02    # Assign minimal buy
-  buy_pct = round(buy_pct_unrounded, 2)
-  sell_pct = round(sell_pct_unrounded, 2)
-  bias_label = 'Neutral Bias' if abs(buy_pct - sell_pct) < 1 else ('Buy-Side Bias' if buy_pct > sell_pct else 'Sell-Side Bias')
+  # Calculate bias using your formula: ratio of smaller to larger
+  if total_sells > total_buys:
+    ratio = total_buys / total_sells
+    sell_bias = 95.0 if ratio < 0.01 else 50.0 + (50.0 * (1 - ratio / 0.01))  # 95% if tiny, scale down otherwise
+    buy_bias = 100.0 - sell_bias
+    bias_label = 'Sell-Side Bias'
+  elif total_buys > total_sells:
+    ratio = total_sells / total_buys
+    buy_bias = 95.0 if ratio < 0.01 else 50.0 + (50.0 * (1 - ratio / 0.01))
+    sell_bias = 100.0 - buy_bias
+    bias_label = 'Buy-Side Bias'
+  else:
+    buy_bias = 50.0
+    sell_bias = 50.0
+    bias_label = 'Neutral Bias'
+
+  buy_pct = round(buy_bias, 2)
+  sell_pct = round(sell_bias, 2)
   bias_detail = f'{bias_label} ({sell_pct:.2f}% sell, {buy_pct:.2f}% buy) 👀'
 
   # Format the message
