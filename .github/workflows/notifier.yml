@@ -31,7 +31,7 @@ from datetime import datetime, timedelta
 try:
   with open('insider_flow.json') as f:
     data = json.load(f)
-  top_buys = float(data['top_buys'])  # Ensure float from the start
+  top_buys = float(data['top_buys'])
   top_sells = float(data['top_sells'])
   total_buys = float(data['total_buys'])
   total_sells = float(data['total_sells'])
@@ -42,14 +42,16 @@ try:
   date_range = f'{start_date}–{end_date}'  # June 24–June 29, 2025
   print(f'Debug: start_date={start_date}, end_date={end_date}')
 
-  # Calculate bias percentages with adjusted precision
+  # Calculate bias percentages with 95% cap
   total_value = total_buys + total_sells
-  buy_pct = round((total_buys / total_value * 100), 6)  # High precision
-  sell_pct = round((total_sells / total_value * 100), 6)
-  # Adjust to avoid 100% by capping sell_pct if buy_pct is tiny
-  if buy_pct < 0.01:  # If buy_pct is effectively zero
-    sell_pct = 99.98  # Cap at 99.98% to avoid 100%
-    buy_pct = 0.02    # Assign minimal buy to balance
+  buy_pct_unrounded = (total_buys / total_value * 100)
+  sell_pct_unrounded = (total_sells / total_value * 100)
+  buy_pct = round(buy_pct_unrounded, 2)
+  sell_pct = round(sell_pct_unrounded, 2)
+  # Adjust to avoid 100% by capping at 95% if buy_pct is tiny
+  if buy_pct < 0.1:  # Threshold for negligible buy
+    sell_pct = 95.0
+    buy_pct = 5.0    # Balance with 5%
   bias_label = 'Neutral Bias' if abs(buy_pct - sell_pct) < 1 else ('Buy-Side Bias' if buy_pct > sell_pct else 'Sell-Side Bias')
   bias_detail = f'{bias_label} ({sell_pct:.2f}% sell, {buy_pct:.2f}% buy) 👀'
 
