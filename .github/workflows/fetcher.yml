@@ -20,16 +20,28 @@ jobs:
         run: pip install requests beautifulsoup4
 
       - name: Fetch and Update Data
-        run: python fetcher.py
+        run: |
+          echo "Starting fetch process..."
+          python fetcher.py
+          if [ ! -f insider_flow.json ]; then
+            echo "Error: insider_flow.json not created" >&2
+            exit 1
+          fi
+          echo "File size of insider_flow.json: $(stat -c%s insider_flow.json) bytes"
         env:
           SEC_EMAIL: ${{ secrets.SEC_EMAIL }}
 
       - name: Commit Updated File
         run: |
           git config --global user.name "abelardinel2"
-          git config --global user.email "your-email@example.com"  # Replace with your email
+          git config --global user.email "your-actual-email@example.com"  # Replace with your email
           git add insider_flow.json
-          git commit -m "Update insider_flow.json with latest data" || echo "No changes to commit"
-          git push
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update insider_flow.json with latest data"
+            git push
+            echo "Pushed changes to repository"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
