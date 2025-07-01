@@ -1,13 +1,17 @@
-import requests
-from bs4 import BeautifulSoup
-import json
+urls = [
+    "https://www.sec.gov/Archives/edgar/data/1930021/000147450625000122/xslF345X03/primary_doc.xml"
+]
 
 def parse_form4_xml(url: str) -> dict:
-    resp = requests.get(url)
+    headers = {
+        "User-Agent": "AmeliaBelardinelli (ameliabelardinelli@gmail.com)"
+    }
+    resp = requests.get(url, headers=headers)
     if resp.status_code != 200:
-        raise Exception(f"Failed to fetch {url}")
+        raise Exception(f"Failed to fetch {url} (Status: {resp.status_code})")
 
     soup = BeautifulSoup(resp.text, "xml")
+
     buys = 0
     sells = 0
 
@@ -24,35 +28,3 @@ def parse_form4_xml(url: str) -> dict:
             sells += amount
 
     return {"buys": buys, "sells": sells}
-
-
-def fetch_and_update_insider_flow():
-    # ✅ Replace with your real SEC Form 4 XML URLs
-    urls = [
-        "https://www.sec.gov/Archives/edgar/data/0000000000/0001104659-25-000000.xml",
-        # Add more if needed
-    ]
-
-    total_buys = 0
-    total_sells = 0
-
-    for url in urls:
-        result = parse_form4_xml(url)
-        total_buys += result["buys"]
-        total_sells += result["sells"]
-
-    # Example: using same for top buys/sells (adjust if needed)
-    output = {
-        "top_buys": total_buys,
-        "top_sells": total_sells,
-        "total_buys": total_buys,
-        "total_sells": total_sells
-    }
-
-    with open("insider_flow.json", "w") as f:
-        json.dump(output, f, indent=2)
-
-    print("✅ insider_flow.json updated!")
-
-if __name__ == "__main__":
-    fetch_and_update_insider_flow()
