@@ -2,8 +2,8 @@ name: Fetch and Notify Insider Flow
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # Runs daily at 4 AM UTC — adjust as needed
-  workflow_dispatch:     # Allows you to run it manually too
+    - cron: '0 4 * * *'
+  workflow_dispatch:
 
 jobs:
   fetch_and_notify:
