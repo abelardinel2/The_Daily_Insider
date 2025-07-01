@@ -2,7 +2,7 @@ name: Notify Insider Flow
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # 8:00 AM EDT
+    - cron: '0 8 * * *'  # 4:00 AM EDT (adjust as needed)
   workflow_dispatch:
 
 jobs:
@@ -11,88 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install deps
-        run: pip install requests beautifulsoup4
-
-      - name: Send Telegram
+      - name: Send Telegram Notification
+        run: |
+          python notifier.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python -c "
-          import json, os, requests
-          from datetime import datetime, timedelta
-
-          try:
-            with open('insider_flow.json') as f:
-              data = json.load(f)
-            top_buys = float(data['top_buys'])
-            top_sells = float(data['top_sells'])
-            total_buys = float(data['total_buys'])
-            total_sells = float(data['total_sells'])
-
-            end_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).strftime('%B %d, %Y')
-            start_date = (datetime.today() - timedelta(days=5)).replace(hour=0, minute=0, second=0, microsecond=0).strftime('%B %d, %Y')
-            date_range = f'{start_date}–{end_date}'
-
-            if total_buys + total_sells > 0:
-              if total_sells > total_buys and total_buys > 0:
-                ratio = total_sells / total_buys
-                if ratio > 10000:
-                  dominance_label = 'Overwhelming Sell Dominance'
-                  favor_denominator = min(round(ratio), 100)
-                elif ratio > 100:
-                  dominance_label = 'Strong Sell Dominance'
-                  favor_denominator = round(ratio)
-                else:
-                  dominance_label = 'Mild Sell Dominance'
-                  favor_denominator = round(ratio)
-                minority_pct = 100.0 / favor_denominator
-                majority_pct = 100.0 - minority_pct
-                favor_text = f'{minority_pct:.2f}% buy, {majority_pct:.2f}% sell'
-              elif total_buys > total_sells and total_sells > 0:
-                ratio = total_buys / total_sells
-                if ratio > 10000:
-                  dominance_label = 'Overwhelming Buy Dominance'
-                  favor_denominator = min(round(ratio), 100)
-                elif ratio > 100:
-                  dominance_label = 'Strong Buy Dominance'
-                  favor_denominator = round(ratio)
-                else:
-                  dominance_label = 'Mild Buy Dominance'
-                  favor_denominator = round(ratio)
-                minority_pct = 100.0 / favor_denominator
-                majority_pct = 100.0 - minority_pct
-                favor_text = f'{majority_pct:.2f}% buy, {minority_pct:.2f}% sell'
-              else:
-                dominance_label = 'Balanced Market'
-                favor_text = '50.00% buy, 50.00% sell'
-            else:
-              dominance_label = 'No Data'
-              favor_text = 'N/A'
-
-            bias_detail = f'{dominance_label} ({favor_text}) 👀'
-
-            msg = f'''
-            📊 Insider Flow Summary ({date_range})
-
-            💰 Top Buys: ${top_buys:,.2f}
-            💥 Top Sells: ${top_sells:,.2f}
-
-            🧮 Total Buys: ${total_buys:,.2f} | Total Sells: ${total_sells:,.2f}
-            📉 {bias_detail}
-            '''
-
-            url = f'https://api.telegram.org/bot{os.getenv(\"TELEGRAM_BOT_TOKEN\")}/sendMessage'
-            response = requests.post(url, json={'chat_id': os.getenv(\"TELEGRAM_CHAT_ID\"), 'text': msg})
-            response.raise_for_status()
-            print('✅ Telegram sent!')
-          except Exception as e:
-            print(f'❌ Error: {e}')
-            raise
-          "
+          SUMMARY_LABEL: ${{ vars.SUMMARY_LABEL }}
+          COMPANY_NAME: ${{ vars.COMPANY_NAME }}
