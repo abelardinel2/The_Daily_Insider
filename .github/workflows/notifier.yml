@@ -88,8 +88,8 @@ jobs:
             📉 {bias_detail}
             '''
 
-            url = f'https://api.telegram.org/bot{os.getenv('TELEGRAM_BOT_TOKEN')}/sendMessage'
-            response = requests.post(url, json={'chat_id': os.getenv('TELEGRAM_CHAT_ID'), 'text': msg})
+            url = f'https://api.telegram.org/bot{os.getenv(\"TELEGRAM_BOT_TOKEN\")}/sendMessage'
+            response = requests.post(url, json={'chat_id': os.getenv(\"TELEGRAM_CHAT_ID\"), 'text': msg})
             response.raise_for_status()
             print('✅ Telegram sent!')
           except Exception as e:
