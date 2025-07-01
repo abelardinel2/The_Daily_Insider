@@ -24,8 +24,8 @@ jobs:
       - name: 📦 Install dependencies
         run: pip install -r requirements.txt
 
-      - name: 🔄 Fetch and Update insider_flow.json
-        run: python fetcher.py
+     - name: Fetch and Update insider_flow.json
+      run: python fetch_and_update_insider_flow.py
 
       - name: 💾 Commit and push updated insider_flow.json
         run: |
