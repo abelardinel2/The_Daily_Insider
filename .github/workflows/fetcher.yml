@@ -21,13 +21,19 @@ jobs:
 
       - name: Fetch and Update Data
         run: |
-          echo "Starting fetch process..."
+          echo "Starting fetch process at $(date)"
           python fetcher.py
           if [ ! -f insider_flow.json ]; then
             echo "Error: insider_flow.json not created" >&2
             exit 1
           fi
-          echo "File size of insider_flow.json: $(stat -c%s insider_flow.json) bytes"
+          filesize=$(stat -c%s insider_flow.json)
+          echo "insider_flow.json size: $filesize bytes"
+          if [ "$filesize" -eq 0 ]; then
+            echo "Error: insider_flow.json is empty" >&2
+            exit 1
+          fi
+          echo "Fetch completed successfully"
         env:
           SEC_EMAIL: ${{ secrets.SEC_EMAIL }}
 
