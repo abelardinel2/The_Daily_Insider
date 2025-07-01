@@ -1,35 +1,63 @@
-name: Fetch Insider Flow
+import os
+import json
+import requests
+from datetime import datetime, timedelta
+from parse import parse_form4_xml
 
-on:
-  schedule:
-    - cron: '0 4 * * *'  # 12:00 AM EDT
-  workflow_dispatch:
+def fetch_and_update_insider_flow():
+    sec_email = os.getenv("SEC_EMAIL")
+    if not sec_email:
+        raise ValueError("SEC_EMAIL environment variable not set")
 
-jobs:
-  fetch:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+    headers = {"User-Agent": sec_email}
+    end_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+    start_date = end_date - timedelta(days=5)
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+    form4_urls = []
+    for offset in range(6):
+        check_date = end_date - timedelta(days=offset)
+        daily_url = f"https://www.sec.gov/Archives/edgar/daily-index/{check_date.strftime('%Y%m%d')}/master.idx"
+        try:
+            resp = requests.get(daily_url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            lines = resp.text.splitlines()
+            for line in lines:
+                if not line or line.startswith("Date"):
+                    continue
+                parts = line.split("|")
+                if len(parts) >= 5:
+                    _, _, _, filename, _ = parts
+                    if filename.endswith((".xml", ".XML")) and "form4" in filename.lower():
+                        form4_url = f"https://www.sec.gov/Archives/edgar/data/{filename.split('/')[0]}/{filename}"
+                        form4_urls.append(form4_url)
+        except requests.RequestException as e:
+            print(f"Failed to fetch {daily_url}: {e}")
+            continue
 
-      - name: Install deps
-        run: pip install requests beautifulsoup4
+    if not form4_urls:
+        print("No Form 4/144 URLs found, check SEC access or index availability.")
 
-      - name: Fetch and Update Data
-        run: python fetcher.py
-        env:
-          SEC_EMAIL: ${{ secrets.SEC_EMAIL }}
+    current_data = {"top_buys": 0, "top_sells": 0, "total_buys": 0, "total_sells": 0}
+    try:
+        with open("insider_flow.json", "r") as f:
+            current_data = json.load(f)
+    except FileNotFoundError:
+        pass
 
-      - name: Commit Updated File
-        run: |
-          git config --global user.name "abelardinel2"
-          git config --global user.email "your-email@example.com"
-          git add insider_flow.json
-          git commit -m "Update insider_flow.json with latest data" || echo "No changes to commit"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    for url in form4_urls:
+        try:
+            trade_data = parse_form4_xml(url)
+            current_data["total_buys"] += trade_data["buys"]
+            current_data["total_sells"] += trade_data["sells"]
+            current_data["top_buys"] = max(current_data["top_buys"], trade_data["buys"])
+            current_data["top_sells"] = max(current_data["top_sells"], trade_data["sells"])
+        except Exception as e:
+            print(f"Error processing {url}: {e}")
+
+    with open("insider_flow.json", "w") as f:
+        json.dump(current_data, f, indent=2)
+
+    print(f"Updated insider_flow.json with {len(form4_urls)} Form 4/144 filings")
+
+if __name__ == "__main__":
+    fetch_and_update_insider_flow()
