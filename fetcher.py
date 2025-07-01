@@ -7,7 +7,6 @@ HEADERS = {
 }
 
 def get_latest_form4_urls(cik: str, limit: int = 5):
-    # Make sure CIK is 10 digits with leading zeros
     cik_padded = cik.zfill(10)
     url = f"https://data.sec.gov/submissions/CIK{cik_padded}.json"
 
@@ -17,21 +16,18 @@ def get_latest_form4_urls(cik: str, limit: int = 5):
 
     data = resp.json()
 
-    form4_filings = []
-    for filing in data["filings"]["recent"]["form"]:
-        if filing == "4":
-            form4_filings.append(filing)
-
-    # Get the indices of the Form 4s
     form_indexes = [i for i, f in enumerate(data["filings"]["recent"]["form"]) if f == "4"]
 
     urls = []
-    for idx in form_indexes[:limit]:  # Limit to latest `limit` Form 4s
+    for idx in form_indexes[:limit]:
         accession = data["filings"]["recent"]["accessionNumber"][idx].replace("-", "")
-        xml_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/xslF345X03/primary_doc.xml"
+        raw_cik = str(int(cik))  # remove leading zeros
+        xml_url = f"https://www.sec.gov/Archives/edgar/data/{raw_cik}/{accession}/xslF345X03/primary_doc.xml"
         urls.append(xml_url)
 
+    print("✅ Found Form 4 URLs:", urls)
     return urls
+
 
 def parse_form4_xml(url: str) -> dict:
     resp = requests.get(url, headers=HEADERS)
@@ -39,15 +35,30 @@ def parse_form4_xml(url: str) -> dict:
         raise Exception(f"Failed to fetch {url} (Status: {resp.status_code})")
 
     soup = BeautifulSoup(resp.text, "xml")
+    print(f"🔍 XML Preview for {url}:\n", soup.prettify()[:500], "...\n")
+
     buys = 0
     sells = 0
 
-    for txn in soup.find_all("nonDerivativeTransaction"):
-        code = txn.transactionCode.string if txn.transactionCode else ""
-        acquired_or_disposed = txn.transactionAcquiredDisposedCode.string if txn.transactionAcquiredDisposedCode else ""
+    transactions = soup.find_all("nonDerivativeTransaction")
+    print(f"🧩 Found {len(transactions)} <nonDerivativeTransaction> blocks")
+
+    for txn in transactions:
+        print("🗂️ One transaction block:")
+        print(txn.prettify())
+
+        code = txn.transactionCode.string.strip() if txn.transactionCode and txn.transactionCode.string else ""
+        acquired_or_disposed = txn.transactionAcquiredDisposedCode.string.strip() if txn.transactionAcquiredDisposedCode and txn.transactionAcquiredDisposedCode.string else ""
 
         amount_node = txn.find("transactionShares")
-        amount = float(amount_node.value.string) if amount_node and amount_node.value else 0
+        amount = 0
+        if amount_node and amount_node.value:
+            try:
+                amount = float(amount_node.value.string.strip())
+            except ValueError:
+                amount = 0
+
+        print(f"🔑 code: '{code}' | A/D: '{acquired_or_disposed}' | 💵 amount: {amount}")
 
         if code == "P" or acquired_or_disposed == "A":
             buys += amount
@@ -59,14 +70,15 @@ def parse_form4_xml(url: str) -> dict:
 
 def fetch_and_update_insider_flow():
     cik = "1930021"  # ✅ Replace with your real CIK
-    urls = get_latest_form4_urls(cik, limit=5)  # Get last 5 Form 4s
+    urls = get_latest_form4_urls(cik, limit=5)
 
     total_buys = 0
     total_sells = 0
 
     for url in urls:
-        print(f"Fetching: {url}")
+        print(f"🚀 Fetching: {url}")
         result = parse_form4_xml(url)
+        print(f"✅ Parsed result for {url}: {result}")
         total_buys += result["buys"]
         total_sells += result["sells"]
 
@@ -80,7 +92,8 @@ def fetch_and_update_insider_flow():
     with open("insider_flow.json", "w") as f:
         json.dump(output, f, indent=2)
 
-    print("✅ insider_flow.json updated with latest filings!")
+    print("✅ insider_flow.json updated with totals:", output)
+
 
 if __name__ == "__main__":
     fetch_and_update_insider_flow()
