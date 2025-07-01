@@ -2,8 +2,8 @@ name: Fetch and Notify Insider Flow
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # Runs daily at 4 AM UTC — adjust as needed
-  workflow_dispatch:       # Allows you to run it manually too
+    - cron: '0 4 * * *'
+  workflow_dispatch:
 
 jobs:
   fetch_and_notify:
@@ -13,7 +13,7 @@ jobs:
       - name: 📂 Checkout Repository
         uses: actions/checkout@v3
 
-      - name: 🐍 Set up Python
+      - name: 🐍 Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -21,7 +21,7 @@ jobs:
       - name: 📦 Install dependencies
         run: pip install -r requirements.txt
 
-      - name: 🔄 Fetch new insider data
+      - name: 🔄 Fetch and Update insider_flow.json
         run: python fetcher.py
 
       - name: 💾 Commit updated insider_flow.json
@@ -37,7 +37,7 @@ jobs:
             echo "✅ Pushed updated insider_flow.json!"
           fi
 
-      - name: 🚀 Send Telegram summary
+      - name: 🚀 Send Telegram Summary
         run: python main.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
