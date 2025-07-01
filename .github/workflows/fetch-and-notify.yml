@@ -2,8 +2,8 @@ name: Fetch and Notify Insider Flow
 
 on:
   schedule:
-    - cron: '0 4 * * *'
-  workflow_dispatch:
+    - cron: '0 4 * * *'  # Runs daily at 4 AM UTC — adjust as needed
+  workflow_dispatch:     # Allows you to run it manually too
 
 jobs:
   fetch_and_notify:
@@ -24,11 +24,14 @@ jobs:
       - name: 🔄 Fetch and Update insider_flow.json
         run: python fetcher.py
 
-      - name: 💾 Commit updated insider_flow.json
+      - name: 💾 Commit and push updated insider_flow.json
         run: |
-          git config --global user.name "YOUR_GITHUB_USERNAME"
-          git config --global user.email "YOUR_EMAIL@example.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
           git add insider_flow.json
+
           if git diff --cached --quiet; then
             echo "✅ No changes to commit."
           else
