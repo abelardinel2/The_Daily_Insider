@@ -21,8 +21,9 @@ def get_latest_form4_urls(cik: str, limit: int = 5):
     urls = []
     for idx in form_indexes[:limit]:
         accession = data["filings"]["recent"]["accessionNumber"][idx].replace("-", "")
-        raw_cik = str(int(cik))  # remove leading zeros
-        xml_url = f"https://www.sec.gov/Archives/edgar/data/{raw_cik}/{accession}/xslF345X03/primary_doc.xml"
+        primary_doc = data["filings"]["recent"]["primaryDocument"][idx]
+        raw_cik = str(int(cik))  # Remove leading zeros
+        xml_url = f"https://www.sec.gov/Archives/edgar/data/{raw_cik}/{accession}/{primary_doc}"
         urls.append(xml_url)
 
     print("✅ Found Form 4 URLs:", urls)
@@ -69,7 +70,7 @@ def parse_form4_xml(url: str) -> dict:
 
 
 def fetch_and_update_insider_flow():
-    cik = "1930021"  # ✅ Replace with your real CIK
+    cik = "1930021"  # ✅ Replace with your target CIK!
     urls = get_latest_form4_urls(cik, limit=5)
 
     total_buys = 0
