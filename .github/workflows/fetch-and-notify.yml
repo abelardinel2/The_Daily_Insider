@@ -1,0 +1,46 @@
+name: Fetch and Notify Insider Flow
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # Runs daily at 4 AM UTC — adjust as needed
+  workflow_dispatch:       # Allows you to run it manually too
+
+jobs:
+  fetch_and_notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📂 Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🔄 Fetch new insider data
+        run: python fetcher.py
+
+      - name: 💾 Commit updated insider_flow.json
+        run: |
+          git config --global user.name "YOUR_GITHUB_USERNAME"
+          git config --global user.email "YOUR_EMAIL@example.com"
+          git add insider_flow.json
+          if git diff --cached --quiet; then
+            echo "✅ No changes to commit."
+          else
+            git commit -m "Update insider_flow.json"
+            git push
+            echo "✅ Pushed updated insider_flow.json!"
+          fi
+
+      - name: 🚀 Send Telegram summary
+        run: python main.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SUMMARY_LABEL: ${{ vars.SUMMARY_LABEL }}
+          COMPANY_NAME: ${{ vars.COMPANY_NAME }}
