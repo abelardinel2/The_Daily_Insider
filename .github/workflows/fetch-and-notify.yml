@@ -24,19 +24,19 @@ jobs:
       - name: 🔄 Fetch and Update insider_flow.json
         run: python fetch_and_update_insider_flow.py
 
-      - name: 💾 Commit and push updated insider_flow.json
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git add insider_flow.json
-          if git diff --cached --quiet; then
-            echo "✅ No changes to commit."
-          else
-            git commit -m "Update insider_flow.json"
-            git push
-            echo "✅ Pushed updated insider_flow.json!"
-          fi
+    - name: 💾 Commit and push updated insider_flow.json
+  run: |
+    git config --global user.name "github-actions[bot]"
+    git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+    git add insider_flow.json
+    if git diff --cached --quiet; then
+      echo "✅ No changes to commit."
+    else
+      git commit -m "Update insider_flow.json"
+      git push
+      echo "✅ Pushed updated insider_flow.json!"
+    fi
 
       - name: 🚀 Send Telegram Summary
         run: python send_telegram.py
