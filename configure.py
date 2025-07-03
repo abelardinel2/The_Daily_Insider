@@ -11,12 +11,12 @@ API_URL = "https://data.sec.gov/submissions/CIK{}.json"  # SEC API fallback
 USER_AGENT = f"{COMPANY_NAME}/1.0 ({SEC_EMAIL})"
 OPENBB_LOG_COLLECT = False  # Disable OpenBB telemetry
 
-# Proxy configuration (update with your proxy service details)
-PROXY_ENABLED = False  # Set to True to enable proxies
+# Proxy configuration (update with your proxy provider details)
+PROXY_ENABLED = False  # Set to True after configuring proxy
 PROXY = {
-    "http": "http://username:password@your_proxy_host:port",
-    "https": "http://username:password@your_proxy_host:port"
+    "http": "http://<username>:<password>@<proxy_host>:<port>",
+    "https": "http://<username>:<password>@<proxy_host>:<port>"
 }
-# Example for ScrapingBee (if using an API-based proxy service)
+# ScrapingBee configuration (recommended for simplicity)
 SCRAPINGBEE_API_KEY = ""  # Add your ScrapingBee API key here
 SCRAPINGBEE_URL = "https://api.scrapingbee.com/?api_key={}&url={}"
