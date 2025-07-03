@@ -2,3 +2,4 @@ requests
 beautifulsoup4
 lxml
 python-telegram-bot
+requests==2.31.0
