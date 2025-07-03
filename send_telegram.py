@@ -1,5 +1,6 @@
 import os
 import requests
+from datetime import datetime, timedelta
 
 def send_summary(data):
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -7,7 +8,12 @@ def send_summary(data):
     summary_label = os.getenv("SUMMARY_LABEL", "Insider Flow")
     company_name = os.getenv("COMPANY_NAME", "Analytics")
 
-    message = f"📊 {summary_label} Summary ({company_name}) (June 26, 2025–July 01, 2025)\n\n"
+    # Dynamic date range: last 7 days
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=7)
+    date_range = f"{start_date.strftime('%B %d, %Y')}–{end_date.strftime('%B %d, %Y')}"
+
+    message = f"📊 {summary_label} Summary ({company_name}) ({date_range})\n\n"
     message += f"💰 Top Buys: ${data['top_buys']:,.2f}\n"
     message += f"💥 Top Sells: ${data['top_sells']:,.2f}\n\n"
     message += f"🧮 Total Buys: ${data['total_buys']:,.2f} | Total Sells: ${data['total_sells']:,.2f}\n"
@@ -24,9 +30,9 @@ def send_summary(data):
 
 if __name__ == "__main__":
     dummy_data = {
-        "top_buys": 100000,
-        "top_sells": 50000,
-        "total_buys": 7,
-        "total_sells": 12
+        "top_buys": 100000.00,
+        "top_sells": 50000.00,
+        "total_buys": 7.00,
+        "total_sells": 12.00
     }
     send_summary(dummy_data)
