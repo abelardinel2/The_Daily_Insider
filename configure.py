@@ -1,4 +1,4 @@
-# config.py
+config.py
 # Configuration for SEC EDGAR fetcher
 
 COMPANY_NAME = "Oria Dawn Analytics"
