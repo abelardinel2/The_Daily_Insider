@@ -42,18 +42,15 @@ def send_telegram_message(message):
 
 def fetch_with_rate_limit(url):
     """Fetch URL with rate limiting (100ms delay) and proxy support."""
-    time.sleep(0.1)  # 100ms delay to stay under 10 requests/second
+    time.sleep(0.1)
     try:
         if PROXY_ENABLED:
             if SCRAPINGBEE_API_KEY:
-                # Use ScrapingBee proxy service
                 proxy_url = SCRAPINGBEE_URL.format(SCRAPINGBEE_API_KEY, requests.utils.quote(url))
                 response = requests.get(proxy_url, headers=headers, timeout=10)
             else:
-                # Use standard proxy
                 response = requests.get(url, headers=headers, proxies=PROXY, timeout=10)
         else:
-            # No proxy
             response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         return response
@@ -71,7 +68,7 @@ def fetch_with_retry(url, max_retries=3):
             if hasattr(e, 'response') and e.response.status_code == 403:
                 send_telegram_message(f"403 Forbidden: {url} - Consider enabling proxies in config.py")
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)  # Backoff: 1s, 2s, 4s
+                time.sleep(2 ** attempt)
             else:
                 send_telegram_message(f"Failed to fetch {url} after {max_retries} attempts")
                 raise Exception(error_msg)
@@ -118,7 +115,7 @@ def parse_rss_feed():
         for entry in root.findall("atom:entry", ns):
             title = entry.find("atom:title", ns).text
             link = entry.find("atom:link", ns).attrib["href"]
-            if "/Archives/edgar/data" in link:  # Respect robots.txt
+            if "/Archives/edgar/data" in link:
                 try:
                     filing_response = fetch_with_retry(link)
                     filings.append({
@@ -146,10 +143,39 @@ def main():
         print(f"{SUMMARY_LABEL} {warning_msg}")
         send_telegram_message(warning_msg)
     
-    # Example CIKs from your data
-    ciks = ["0000003545", "0000005272"]  # ALICO, INC. and AMERICAN INTERNATIONAL GROUP, INC.
+    ciks = ["0000003545", "0000005272"]
     all_filings = []
 
-    # Try OpenBB first
     for cik in ciks:
-        filings = fetch_openbb_filings(c
+        filings = fetch_openbb_filings(cik)
+        if filings:
+            all_filings.append({"cik": cik, "source": "OpenBB", "data": filings})
+        else:
+            print(f"{SUMMARY_LABEL} Falling back to SEC API for CIK {cik}")
+            api_filings = fetch_api_filings(cik)
+            if api_filings:
+                all_filings.append({"cik": cik, "source": "API", "data": api_filings})
+
+    if not all_filings:
+        print(f"{SUMMARY_LABEL} Falling back to RSS feed")
+        rss_filings = parse_rss_feed()
+        if rss_filings:
+            all_filings.append({"source": "RSS", "data": rss_filings})
+
+    if all_filings:
+        print(f"{SUMMARY_LABEL} Processed {len(all_filings)} filing sets")
+        for filing_set in all_filings:
+            source = filing_set["source"]
+            if source == "RSS":
+                for filing in filing_set["data"]:
+                    print(f"Source: {source}, Title: {filing['title']}, URL: {filing['url']}")
+            else:
+                cik = filing_set["cik"]
+                print(f"Source: {source}, CIK: {cik}, Filings: {len(filing_set['data'].get('filings', []))}")
+    else:
+        error_msg = "No filings processed"
+        print(f"{SUMMARY_LABEL} {error_msg}")
+        send_telegram_message(error_msg)
+
+if __name__ == "__main__":
+    main()
