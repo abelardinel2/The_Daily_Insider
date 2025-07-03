@@ -13,7 +13,11 @@ WATCHLIST = [
 ]
 
 def fetch_and_update_insider_flow():
-    url = "https://www.sec.gov/cgi-bin/current_q?i=csv"
+    # Set date range (e.g., last 7 days)
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=7)
+    date_format = "%Y%m%d"
+    url = f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&dateb={start_date.strftime(date_format)}&datea={end_date.strftime(date_format)}&type=4&owner=include&output=atom"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124 (your.email@example.com)",  # Replace with your email
         "Accept": "application/xml"
@@ -21,7 +25,7 @@ def fetch_and_update_insider_flow():
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        print(f"Fetched RSS at {datetime.now()}: {response.text[:500]}...")
+        print(f"Fetched RSS from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')} at {datetime.now()}: {response.text[:500]}...")
         root = ET.fromstring(response.content)
         trades = {"tickers": {ticker: {"buys": 0, "sells": 0, "alerts": []} for ticker in WATCHLIST}, "last_updated": datetime.utcnow().isoformat() + "Z"}
         analyzer_trades = {"total_buys": 0.0, "total_sells": 0.0, "top_buys": 0.0, "top_sells": 0.0}
