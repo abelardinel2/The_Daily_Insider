@@ -3,39 +3,59 @@ name: Fetch and Notify Insider Flow
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'  # Runs every hour — adjust as needed
+    - cron: '0 12 * * *'  # Runs daily at 12:00 UTC (8:00 AM EDT)
 
 jobs:
   fetch_and_notify:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📁 Checkout Repository
-        uses: actions/checkout@v3
+    - name: Set up job
+      run: echo "Starting job..."
 
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+    - name: Checkout Repository
+      uses: actions/checkout@v3
 
-      - name: 📦 Install dependencies
-        run: pip install -r requirements.txt
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
 
-      - name: 🔄 Fetch and Update insider_flow.json
-        run: python fetch_and_update_insider_flow.py
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+      continue-on-error: false
 
-      - name: 💾 Commit and push updated insider_flow.json
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add insider_flow.json
-          if git diff --cached --quiet; then
-            echo "✅ No changes to commit."
-          else
-            git commit -m "Update insider_flow.json"
-            git push
-            echo "✅ Pushed updated insider_flow.json!"
-          fi
+    - name: Fetch and Update insider_flow.json
+      run: python fetch_and_update_insider_flow.py
+      continue-on-error: true  # Allow failure to log errors
 
-      - name: 🚀 Send Telegram Summary
-        run: python send_telegram.py
+    - name: Commit and push updated insider_flow.json
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add insider_flow.json
+        if git diff --cached --quiet; then
+          echo "✅ No changes to commit."
+        else
+          git commit -m "Update insider_flow.json" || echo "⚠️ Commit failed, possibly no changes"
+          git push || echo "⚠️ Push failed, check permissions"
+          echo "✅ Pushed updated insider_flow.json!"
+        fi
+
+    - name: Send Telegram Summary
+      run: python send_telegram.py
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      continue-on-error: true  # Log errors but proceed
+
+    - name: Upload logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: workflow-logs
+        path: |
+          ~/.cache/pip
+          ${{ github.workspace }}/*.log
