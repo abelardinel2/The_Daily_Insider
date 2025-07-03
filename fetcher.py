@@ -1,3 +1,4 @@
+# fetcher.py
 # SEC EDGAR filing fetcher with OpenBB, RSS, API fallback, and proxy support
 
 import time
