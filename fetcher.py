@@ -1,5 +1,4 @@
-# fetcher.py
-# SEC EDGAR filing fetcher with OpenBB integration, rate limiting, and Telegram notifications
+# SEC EDGAR filing fetcher with OpenBB, RSS, API fallback, and proxy support
 
 import time
 import logging
@@ -7,7 +6,7 @@ import requests
 from requests.exceptions import RequestException
 import xml.etree.ElementTree as ET
 from openbb import obb
-from config import COMPANY_NAME, SEC_EMAIL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, RSS_URL, API_URL, USER_AGENT, SUMMARY_LABEL, OPENBB_LOG_COLLECT
+from config import COMPANY_NAME, SEC_EMAIL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, RSS_URL, API_URL, USER_AGENT, SUMMARY_LABEL, OPENBB_LOG_COLLECT, PROXY_ENABLED, PROXY, SCRAPINGBEE_API_KEY, SCRAPINGBEE_URL
 
 # Configure logging
 logging.basicConfig(
@@ -21,9 +20,12 @@ obb.user.preferences.log_collect = OPENBB_LOG_COLLECT
 obb.user.credentials.user_agent = USER_AGENT
 
 # Headers for SEC compliance
-headers = {
+headers =
+
+System: {
     "User-Agent": USER_AGENT,
-    "Accept": "application/xml,application/json,text/html"
+    "Accept": "application/xml,application/json,text/html",
+    "Accept-Encoding": "gzip, deflate"
 }
 
 def send_telegram_message(message):
@@ -40,11 +42,24 @@ def send_telegram_message(message):
         logging.error(f"Failed to send Telegram message: {str(e)}")
 
 def fetch_with_rate_limit(url):
-    """Fetch URL with rate limiting (100ms delay)."""
+    """Fetch URL with rate limiting (100ms delay) and proxy support."""
     time.sleep(0.1)  # 100ms delay to stay under 10 requests/second
-    response = requests.get(url, headers=headers, timeout=10)
-    response.raise_for_status()
-    return response
+    try:
+        if PROXY_ENABLED:
+            if SCRAPINGBEE_API_KEY:
+                # Use ScrapingBee proxy service
+                proxy_url = SCRAPINGBEE_URL.format(SCRAPINGBEE_API_KEY, requests.utils.quote(url))
+                response = requests.get(proxy_url, headers=headers, timeout=10)
+            else:
+                # Use standard proxy
+                response = requests.get(url, headers=headers, proxies=PROXY, timeout=10)
+        else:
+            # No proxy
+            response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        return response
+    except RequestException as e:
+        raise
 
 def fetch_with_retry(url, max_retries=3):
     """Fetch URL with retry logic and exponential backoff."""
@@ -54,7 +69,7 @@ def fetch_with_retry(url, max_retries=3):
         except RequestException as e:
             error_msg = f"Attempt {attempt + 1} failed for {url}: {str(e)}"
             logging.error(error_msg)
-            if response.status_code == 403:
+            if hasattr(e, 'response') and e.response.status_code == 403:
                 send_telegram_message(f"403 Forbidden: {url}")
             if attempt < max_retries - 1:
                 time.sleep(2 ** attempt)  # Backoff: 1s, 2s, 4s
@@ -66,7 +81,14 @@ def fetch_openbb_filings(cik, form_type="4"):
     """Fetch filings using OpenBB for a given CIK and form type."""
     try:
         filings = obb.regulators.sec.filings(cik=cik, form_type=form_type).to_dict()
-        return filings
+        if filings:
+            print(f"{SUMMARY_LABEL} Successfully fetched {len(filings.get('filings', []))} filings for CIK {cik} via OpenBB")
+            return filings
+        else:
+            error_msg = f"No filings found for CIK {cik} via OpenBB"
+            logging.warning(error_msg)
+            send_telegram_message(error_msg)
+            return None
     except Exception as e:
         error_msg = f"OpenBB failed for CIK {cik}: {str(e)}"
         logging.error(error_msg)
@@ -78,7 +100,9 @@ def fetch_api_filings(cik):
     try:
         url = API_URL.format(cik.zfill(10))
         response = fetch_with_retry(url)
-        return response.json()
+        data = response.json()
+        print(f"{SUMMARY_LABEL} Successfully fetched API data for CIK {cik}")
+        return data
     except Exception as e:
         error_msg = f"SEC API failed for CIK {cik}: {str(e)}"
         logging.error(error_msg)
@@ -95,7 +119,7 @@ def parse_rss_feed():
         for entry in root.findall("atom:entry", ns):
             title = entry.find("atom:title", ns).text
             link = entry.find("atom:link", ns).attrib["href"]
-            if "/Archives/edgar/data" in link:
+            if "/Archives/edgar/data" in link:  # Respect robots.txt
                 try:
                     filing_response = fetch_with_retry(link)
                     filings.append({
@@ -103,9 +127,9 @@ def parse_rss_feed():
                         "url": link,
                         "content": filing_response.text
                     })
-                    print(f"{SUMMARY_LABEL} Processed: {title} - {link}")
+                    print(f"{SUMMARY_LABEL} Processed RSS filing: {title} - {link}")
                 except Exception as e:
-                    error_msg = f"Failed to process filing {link}: {str(e)}"
+                    error_msg = f"Failed to process RSS filing {link}: {str(e)}"
                     logging.error(error_msg)
                     send_telegram_message(error_msg)
         return filings
@@ -117,7 +141,7 @@ def parse_rss_feed():
 
 def main():
     """Main function to run the fetcher."""
-    print(f"{SUMMARY_LABEL} SEC EDGAR Fetcher started by {COMPANY_NAME}")
+    print(f"{SUMMARY_LABEL} SEC EDGAR Fetcher started by {COMPANY_NAME} at {time.ctime()}")
     
     # Example CIKs from your data
     ciks = ["0000003545", "0000005272"]  # ALICO, INC. and AMERICAN INTERNATIONAL GROUP, INC.
@@ -125,28 +149,38 @@ def main():
 
     # Try OpenBB first
     for cik in ciks:
-        print(f"{SUMMARY_LABEL} Fetching filings for CIK {cik} using OpenBB")
         filings = fetch_openbb_filings(cik)
         if filings:
-            all_filings.append({"cik": cik, "が存在
+            all_filings.append({"cik": cik, "source": "OpenBB", "data": filings})
+        else:
+            # Fallback to SEC API
+            print(f"{SUMMARY_LABEL} Falling back to SEC API for CIK {cik}")
+            api_filings = fetch_api_filings(cik)
+            if api_filings:
+                all_filings.append({"cik": cik, "source": "API", "data": api_filings})
 
-System: **Updated Files and Integration with OpenBB and SEC Guidelines**
+    # Fallback to RSS feed if no filings retrieved
+    if not all_filings:
+        print(f"{SUMMARY_LABEL} Falling back to RSS feed")
+        rss_filings = parse_rss_feed()
+        if rss_filings:
+            all_filings.append({"source": "RSS", "data": rss_filings})
 
-Below are the updated `config.py` and `fetcher.py` files, incorporating the OpenBB Platform for fetching SEC EDGAR filings, adhering to the SEC's guidelines from the EDGAR Accessing Data page, and maintaining your Telegram notification system. The updates ensure compliance with the SEC's rate limits (10 requests/second), `User-Agent` requirements, and `robots.txt` restrictions (allowing `/Archives/edgar/data`, disallowing `/cgi-bin`). The files leverage OpenBB for simplified EDGAR data access, with a fallback to the SEC’s RSS feed and API, and integrate your provided `COMPANY_NAME`, `SEC_EMAIL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and `SUMMARY_LABEL`.
+    # Summarize results
+    if all_filings:
+        print(f"{SUMMARY_LABEL} Processed {len(all_filings)} filing sets")
+        for filing_set in all_filings:
+            source = filing_set["source"]
+            if source == "RSS":
+                for filing in filing_set["data"]:
+                    print(f"Source: {source}, Title: {filing['title']}, URL: {filing['url']}")
+            else:
+                cik = filing_set["cik"]
+                print(f"Source: {source}, CIK: {cik}, Filings: {len(filing_set['data'].get('filings', []))}")
+    else:
+        error_msg = "No filings processed"
+        print(f"{SUMMARY_LABEL} {error_msg}")
+        send_telegram_message(error_msg)
 
-### Updated `config.py`
-This file stores configuration variables, including OpenBB settings and SEC API details.
-
-```python
-# config.py
-# Configuration for SEC EDGAR fetcher with OpenBB integration
-
-COMPANY_NAME = "Oria Dawn Analytics"
-SEC_EMAIL = "contact@oriadawn.xyz"
-TELEGRAM_BOT_TOKEN = "7975548444:AAFtmHs3S3GYL_rDpawtDE-f_09_lFg3ex8"
-TELEGRAM_CHAT_ID = "6652085600"
-SUMMARY_LABEL = "Morning"
-RSS_URL = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent"
-API_URL = "https://data.sec.gov/submissions/CIK{}.json"  # SEC API fallback
-USER_AGENT = f"{COMPANY_NAME}/1.0 ({SEC_EMAIL})"
-OPENBB_LOG_COLLECT = False  # Disable OpenBB telemetry
+if __name__ == "__main__":
+    main()
