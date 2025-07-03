@@ -15,7 +15,7 @@ def fetch_and_update_insider_flow():
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        print(f"Fetched data at {datetime.now()}")
+        print(f"Fetched RSS at {datetime.now()}: {response.text[:500]}...")  # Debug: Show first 500 chars
         root = ET.fromstring(response.content)
         trades = {
             "top_buys": 0,
@@ -34,12 +34,11 @@ def fetch_and_update_insider_flow():
                         form4_data = parse_form4_xml(link)
                         trades["total_buys"] += form4_data["buys"]
                         trades["total_sells"] += form4_data["sells"]
-                        # "Top" could be based on owned/targeted significance; for now, mirror totals
                         trades["top_buys"] += form4_data["buys"]
                         trades["top_sells"] += form4_data["sells"]
                     except Exception as e:
                         print(f"Error parsing {link} for {ticker}: {e}")
-        print(f"Found total buys: {trades['total_buys']}, total sells: {trades['total_sells']}")
+        print(f"Trade summary: {trades}")
         with open("insider_flow.json", "w") as f:
             json.dump(trades, f, indent=4)
     except requests.exceptions.RequestError as e:
