@@ -16,8 +16,17 @@ def send_summary(data):
     message += f"📉 {bias} ({(data['total_buys'] / total_trades * 100 if total_trades else 0):.2f}% buy, {(data['total_sells'] / total_trades * 100 if total_trades else 0):.2f}% sell) 👀"
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    response = requests.post(url, data={"chat_id": chat_id, "text": message})
+    response = requests.post(url, json={"chat_id": chat_id, "text": message})
     if response.status_code != 200:
         print(f"❌ Failed to send message: {response.text}")
     else:
         print("✅ Telegram message sent successfully!")
+
+if __name__ == "__main__":
+    dummy_data = {
+        "top_buys": 100000,
+        "top_sells": 50000,
+        "total_buys": 7,
+        "total_sells": 12
+    }
+    send_summary(dummy_data)
