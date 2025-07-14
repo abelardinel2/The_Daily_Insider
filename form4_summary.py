@@ -1,3 +1,5 @@
+from datetime import datetime
+
 def summarize_trades(entries):
     sales = []
     buys = []

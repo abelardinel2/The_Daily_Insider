@@ -5,5 +5,5 @@ def parse_form4_txt(txt_content):
     tables = soup.find_all("table")
     for table in tables:
         if "nonDerivativeTable" in str(table):
-            return True  # Found valid Form 4 data
+            return True
     return False

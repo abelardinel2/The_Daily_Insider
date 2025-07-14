@@ -1,17 +1,9 @@
 from rss_parser import fetch_form4_entries
-from sec_parser import parse_form4_txt
-from fetcher import get_rss_feed
-import telegram
+from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from telegram import Bot
 import os
 
-# Load environment variables (for local testing)
-from dotenv import load_dotenv
-load_dotenv()
-
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
-bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
+bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 def summarize_trades(entries):
     if not entries:
