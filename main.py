@@ -1,5 +1,6 @@
 from rss_parser import fetch_form4_entries
 from sec_parser import parse_form4_txt
+from fetcher import get_rss_feed
 import telegram
 import os
 
