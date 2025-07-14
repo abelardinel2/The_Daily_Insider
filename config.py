@@ -1,2 +1,7 @@
-TELEGRAM_BOT_TOKEN=7949673042:AAGVHTPR70ornpeebl3Hlspa7FBPVy0aar0
-TELEGRAM_CHAT_ID=6652085600
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
