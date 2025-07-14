@@ -1,5 +1,4 @@
-requests>=2.32.1,<3.0.0
-openbb==4.3.2
-beautifulsoup4
-lxml
+requests
 python-telegram-bot
+feedparser
+python-dotenv
