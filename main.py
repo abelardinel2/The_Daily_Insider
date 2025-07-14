@@ -11,7 +11,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-bot = telegram.Bot(token=BOT_TOKEN)
+bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
 
 def summarize_trades(entries):
     if not entries:
@@ -31,9 +31,9 @@ def run_daily_summary():
     summary = summarize_trades(entries)
 
     if summary:
-        bot.send_message(chat_id=CHAT_ID, text=f"📢 Insider Trades (Form 4):\n\n{summary}")
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"📢 Insider Trades (Form 4):\n\n{summary}")
     else:
-        bot.send_message(chat_id=CHAT_ID, text="📭 No insider alerts found.")
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="📭 No insider alerts found.")
 
 if __name__ == "__main__":
     run_daily_summary()
