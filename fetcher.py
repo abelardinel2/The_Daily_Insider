@@ -2,7 +2,7 @@ import feedparser
 
 SEC_FEED_URL = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&owner=only&count=100&output=atom"
 
-def get_rss_feed():
+def fetch_form4_entries():
     feed = feedparser.parse(SEC_FEED_URL)
     entries = []
 
