@@ -1,15 +1,16 @@
-from fetcher import fetch_form4_entries
-from form4_summary import summarize_trades
-from telegram_bot import send_telegram_message
+from rss_parser import parse_form4_rss
+from telegram_bot import send_telegram_alert
 
-def run_daily_summary():
-    entries = fetch_form4_entries()
-    summary = summarize_trades(entries)
+def main():
+    alerts = parse_form4_rss()
 
-    if summary:
-        send_telegram_message(summary)
-    else:
-        send_telegram_message("📭 No insider alerts found today.")
+    if not alerts:
+        send_telegram_alert("🔍 No insider alerts found today.")
+        return
+
+    for ticker, cik, link in alerts:
+        message = f"🔔 New Form 4 Alert for {ticker}:\n{link}"
+        send_telegram_alert(message)
 
 if __name__ == "__main__":
-    run_daily_summary()
+    main()
