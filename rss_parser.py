@@ -2,7 +2,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-from send_telegram import send_telegram_alert
+from telegram_bot import send_telegram_alert  # ✅ Corrected import
 
 FEED_URL = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&CIK=&type=4&company=&dateb=&owner=include&start=0&count=100&output=atom"
 
@@ -49,20 +49,3 @@ def parse_form4_rss():
             print(f"Error parsing {link}: {e}")
 
     return results
-
-def main():
-    alerts = parse_form4_rss()
-    if not alerts:
-        send_telegram_alert("📭 No insider alerts found in the past 7 days.")
-        return
-
-    for link, buys, sells in alerts:
-        msg = (
-            f"📢 Insider Alert:\n"
-            f"{link}\n"
-            f"👤 Buys: {buys} | Sells: {sells}"
-        )
-        send_telegram_alert(msg)
-
-if __name__ == "__main__":
-    main()
