@@ -1,5 +1,5 @@
 from telegram_bot import send_telegram_alert
-from form4_summary import parse_form4_rss  # This should match the real parser you're using
+from rss_parser import parse_form4_rss  # ← this is the correct source now
 
 def main():
     alerts = parse_form4_rss()
