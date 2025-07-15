@@ -1,31 +1,18 @@
-# main.py  – Daily Insider entry-point
-# -----------------------------------
-# 1) Change `rss_parser` below if your parser file is named differently
-#    (e.g., from rss_parser import parse_form4_rss)
-# 2) Keep the telegram import exactly as shown.
-
-from rss_parser import parse_form4_rss      # <-- adjust if your file name differs
 from telegram_bot import send_telegram_alert
+from form4_summary import parse_form4_rss  # This should match the real parser you're using
 
-
-def main() -> None:
-    """Fetch recent Form 4 / 4-A insider filings and push Telegram alerts."""
+def main():
     alerts = parse_form4_rss()
-
-    # Nothing found
     if not alerts:
-        send_telegram_alert("🔍 No insider alerts found today.")
+        send_telegram_alert("📭 No insider alerts found in the past 7 days.")
         return
 
-    # Send an alert for each match
-    for ticker, cik, link in alerts:
+    for link, buys, sells in alerts:
         message = (
-            f"📢 Insider Alert for {ticker}\n"
-            f"👤 CIK: {cik}\n"
-            f"🔗 {link}"
+            f"📢 Insider Alert:\n{link}\n"
+            f"👤 Buys: {buys} | Sells: {sells}"
         )
         send_telegram_alert(message)
-
 
 if __name__ == "__main__":
     main()
