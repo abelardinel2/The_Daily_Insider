@@ -57,9 +57,11 @@ def main():
         return
 
     for link, buys, sells in alerts:
-        msg = f"📢 Insider Alert:
-{link}
-👤 Buys: {buys} | Sells: {sells}"
+        msg = (
+            f"📢 Insider Alert:\n"
+            f"{link}\n"
+            f"👤 Buys: {buys} | Sells: {sells}"
+        )
         send_telegram_alert(msg)
 
 if __name__ == "__main__":
